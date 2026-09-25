@@ -1,0 +1,26 @@
+# 构建上下文里绝不进镜像的东西
+.git
+.gitignore
+.github
+__pycache__/
+*.pyc
+
+# 数据与密钥（含节点凭据、密码哈希）——只能以卷挂载方式进入容器
+data.json*
+shadowrocket.db*
+*.db
+*.db-wal
+*.db-shm
+output/
+server.log
+*.bak*
+
+# 本地内核二进制（mac 架构，镜像内用不到；容器里测速自动降级为端口探测）
+bin/
+
+# 工具与工作区
+.workbuddy/
+data.json.bak-*
+start.sh
+stop.sh
+set-password.sh

@@ -1,0 +1,2870 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>shadowrocket config</title>
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+<meta name="theme-color" content="#141922">
+<style>
+:root{
+  /* 苹果系统色 */
+  --accent:#007aff; --accent-2:#0066d6; --accent-soft:rgba(0,122,255,.1); --accent-line:rgba(0,122,255,.35);
+  --ok:#1f9d4d; --ok-soft:rgba(52,199,89,.14);
+  --warn:#b4700a; --warn-soft:rgba(255,159,10,.16);
+  --danger:#d8352a; --danger-soft:rgba(255,59,48,.12);
+  --info:#4b49c8; --info-soft:rgba(88,86,214,.12);
+
+  /* 文字：Apple label 灰阶 */
+  --text:#1c1c1e; --text-2:rgba(60,60,67,.72); --text-3:rgba(60,60,67,.48);
+
+  /* 液态玻璃材质 */
+  --glass:rgba(255,255,255,.56);
+  --glass-strong:rgba(255,255,255,.74);
+  --glass-weak:rgba(255,255,255,.34);
+  --glass-input:rgba(255,255,255,.62);
+  --edge:rgba(22,32,58,.08);             /* 卡片外沿：中性发丝线（配 --hi 内侧白高光） */
+  --hair:rgba(60,60,67,.1);              /* 细发丝线 */
+  --hair-2:rgba(60,60,67,.16);
+  --hi:inset 0 1px 0 rgba(255,255,255,.92);
+  --sh-1:0 1px 1px rgba(16,24,40,.03),0 6px 18px -10px rgba(16,24,40,.14);
+  --sh-2:0 1px 2px rgba(16,24,40,.04),0 14px 34px -14px rgba(16,24,40,.22);
+  --sh-3:0 30px 80px -24px rgba(16,24,40,.34);
+
+  --r-xs:8px; --r-sm:10px; --r:18px; --r-lg:22px;
+  --blur:blur(26px) saturate(185%);
+  --side:268px; --side-collapsed:76px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Helvetica Neue",Arial,sans-serif;
+  color:var(--text);font-size:13.5px;line-height:1.55;
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
+  background-color:#f4f5f7;
+  background-image:
+    radial-gradient(1100px 460px at 16% -10%, rgba(0,122,255,.05) 0%, rgba(0,122,255,0) 62%),
+    radial-gradient(820px 380px at 90% -6%, rgba(94,92,230,.035) 0%, rgba(94,92,230,0) 58%),
+    linear-gradient(180deg,#f7f8fa 0%,#f1f3f6 100%);
+  background-attachment:fixed;
+}
+a{color:inherit;text-decoration:none}
+input,select,textarea,button{font-family:inherit;font-size:inherit;color:inherit}
+::selection{background:rgba(0,122,255,.22)}
+::-webkit-scrollbar{width:11px;height:11px}
+::-webkit-scrollbar-thumb{background:rgba(60,60,67,.22);border-radius:8px;
+  border:3px solid transparent;background-clip:content-box}
+::-webkit-scrollbar-thumb:hover{background:rgba(60,60,67,.36);background-clip:content-box;border:3px solid transparent}
+::-webkit-scrollbar-track{background:transparent}
+.num{font-variant-numeric:tabular-nums}
+
+/* ============================ login ============================ */
+#authView{
+  min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;
+}
+.auth-card{
+  width:100%;max-width:392px;padding:36px 34px 30px;
+  background:var(--glass-strong);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
+  border:1px solid var(--edge);border-radius:var(--r-lg);
+  box-shadow:var(--sh-3),var(--hi);
+}
+.auth-mark{
+  width:48px;height:48px;border-radius:15px;color:#fff;margin-bottom:22px;
+  background:linear-gradient(170deg,#5aa9ff,#007aff 62%,#0062d6);
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 8px 20px -8px rgba(0,122,255,.55),inset 0 1px 0 rgba(255,255,255,.45);
+}
+.auth-card h2{font-size:21px;font-weight:650;letter-spacing:-.45px}
+.auth-card p{font-size:13px;color:var(--text-2);margin:7px 0 24px}
+.auth-foot{margin-top:20px;padding-top:16px;border-top:1px solid var(--hair);
+  font-size:12px;color:var(--text-3);text-align:center}
+
+/* ============================ shell ============================ */
+.app{display:flex;min-height:100vh}
+.sidebar{
+  width:var(--side);flex:0 0 auto;padding:22px 16px 16px;
+  display:flex;flex-direction:column;position:sticky;top:0;height:100vh;
+  background:rgba(255,255,255,.42);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
+  border-right:1px solid var(--hair);
+  transition:width .3s cubic-bezier(.4,0,.2,1),padding .3s cubic-bezier(.4,0,.2,1);
+}
+.brand{display:flex;align-items:center;gap:12px;padding:2px 8px 8px}
+.brand-mark{
+  width:33px;height:33px;border-radius:11px;color:#fff;flex:0 0 33px;
+  background:linear-gradient(170deg,#3b4351,#1a1f28 58%,#0b0e13);
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 6px 16px -7px rgba(12,18,32,.75),inset 0 1px 0 rgba(255,255,255,.22);
+}
+.brand-text b{display:block;font-size:13.5px;font-weight:620;letter-spacing:-.15px}
+.brand-text span{font-size:11px;color:var(--text-3);letter-spacing:.03em}
+.nav{display:flex;flex-direction:column;gap:2px}
+.nav-label{font-size:10.5px;font-weight:600;color:var(--text-3);letter-spacing:.1em;
+  text-transform:uppercase;padding:14px 10px 7px}
+.nav button{
+  display:flex;align-items:center;gap:10px;width:100%;padding:8.5px 10px;border:0;
+  background:transparent;border-radius:var(--r-sm);cursor:pointer;color:var(--text-2);
+  font-size:13.5px;text-align:left;transition:background .16s,color .16s,box-shadow .16s;
+}
+.nav button:hover{background:rgba(255,255,255,.62);color:var(--text)}
+.nav button.active{background:rgba(255,255,255,.9);color:var(--accent);font-weight:580;
+  box-shadow:0 1px 2px rgba(16,24,40,.06),0 6px 16px -10px rgba(16,24,40,.22),var(--hi)}
+.nav button.active svg{stroke:var(--accent)}
+.nav button svg{stroke:var(--text-3);flex:0 0 18px;transition:stroke .16s}
+.nav .count{margin-left:auto;font-size:11.5px;color:var(--text-3);
+  font-variant-numeric:tabular-nums;min-width:16px;text-align:right}
+.nav button.active .count{color:var(--accent)}
+.side-foot{margin-top:auto;padding-top:14px;border-top:1px solid var(--hair)}
+.side-foot .btn{width:100%}
+.side-stat{display:flex;align-items:center;gap:8px;padding:5px 10px;font-size:12px;color:var(--text-2)}
+.side-stat b{font-variant-numeric:tabular-nums;color:var(--text);font-weight:560}
+.side-toggle{align-self:flex-end;display:flex;align-items:center;justify-content:center;
+  width:27px;height:27px;margin:0 6px 14px;border:0;border-radius:9px;background:transparent;
+  color:var(--text-3);cursor:pointer;transition:background .16s,color .16s,align-self .3s}
+.side-toggle:hover{background:rgba(255,255,255,.75);color:var(--text)}
+.side-toggle:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.side-toggle svg{transition:transform .32s cubic-bezier(.4,0,.2,1)}
+
+/* ---------- 侧栏折叠态 ---------- */
+.app.collapsed .sidebar{width:var(--side-collapsed);padding-left:11px;padding-right:11px}
+.app.collapsed .brand{justify-content:center;padding-left:0;padding-right:0}
+.app.collapsed .brand-text,
+.app.collapsed .nav-label,
+.app.collapsed .nav-text,
+.app.collapsed #sideSummary{display:none}
+.app.collapsed .side-toggle{align-self:center;margin:0 0 16px}
+.app.collapsed .side-toggle svg{transform:rotate(180deg)}
+.app.collapsed .nav button{justify-content:center;gap:0;padding:9px 0}
+.app.collapsed .nav .count{display:none}
+.app.collapsed .side-stat{justify-content:center;padding-left:0;padding-right:0}
+.app.collapsed .side-stat>span:last-child{display:none}
+.app.collapsed #btnLogout{padding-left:0;padding-right:0;width:38px}
+.app.collapsed #btnLogout span{display:none}
+
+.content{flex:1;min-width:0;padding:0 36px 80px;max-width:1360px;margin:0 auto}
+.page-head{
+  position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:18px;
+  padding:20px 36px 16px;margin:0 -36px 4px;flex-wrap:wrap;
+  background:rgba(246,247,249,.66);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
+}
+.page-head h1{font-size:19px;font-weight:650;letter-spacing:-.45px}
+.page-desc{font-size:12.5px;color:var(--text-3);margin-top:3px}
+.head-actions{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+
+/* ============================ buttons ============================ */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;height:33px;
+  padding:0 15px;border:1px solid transparent;border-radius:var(--r-sm);
+  background:linear-gradient(180deg,#3d9bff,#007aff);color:#fff;
+  font-size:12.5px;font-weight:580;cursor:pointer;letter-spacing:.01em;
+  white-space:nowrap;text-decoration:none;
+  box-shadow:0 1px 2px rgba(0,122,255,.28),0 6px 16px -8px rgba(0,122,255,.5),
+    inset 0 1px 0 rgba(255,255,255,.42);
+  transition:filter .16s,box-shadow .16s,transform .08s,background .16s;
+}
+.btn:hover{filter:brightness(1.06)}
+.btn:active{transform:scale(.962);filter:brightness(.97)}
+.btn:disabled{opacity:.5;cursor:default;filter:none}
+.btn:focus-visible{outline:none;box-shadow:0 0 0 3.5px rgba(0,122,255,.22)}
+.btn.ghost{
+  background:var(--glass-strong);backdrop-filter:blur(14px) saturate(180%);
+  -webkit-backdrop-filter:blur(14px) saturate(180%);
+  border-color:var(--edge);color:var(--text-2);
+  box-shadow:0 1px 1px rgba(16,24,40,.04),0 6px 16px -12px rgba(16,24,40,.3),var(--hi);
+}
+.btn.ghost:hover{background:#fff;color:var(--text);border-color:#fff;filter:none}
+.btn.danger{background:rgba(255,255,255,.72);border-color:rgba(255,59,48,.28);color:var(--danger);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  box-shadow:0 1px 1px rgba(16,24,40,.04),var(--hi)}
+.btn.danger:hover{background:var(--danger-soft);border-color:rgba(255,59,48,.5);filter:none}
+.btn.sm{height:28px;padding:0 11px;font-size:12px;border-radius:var(--r-xs)}
+.btn.icon{width:28px;padding:0}
+.btn.icon svg{stroke:currentColor}
+.btn svg{stroke:currentColor;flex:0 0 auto}
+
+/* ============================ motion（全局动效） ============================ */
+:root{--ease:cubic-bezier(.32,.72,.28,1)}
+html{scroll-behavior:smooth}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes dlgIn{from{opacity:0;transform:translateY(16px) scale(.972)}
+  to{opacity:1;transform:none}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+dialog[open]{animation:dlgIn .28s var(--ease)}
+dialog::backdrop{animation:fadeIn .24s ease}
+section[id^="tab-"]{animation:fadeUp .32s var(--ease)}
+/* 展开内容（分组成员列表 / 来源节点网格）出现时的阻尼感 */
+.gcard-b,.nsec .ngrid{animation:fadeUp .3s var(--ease)}
+/* 按压反馈：可点的都会轻轻缩一下 */
+.nav button,.tabbar button,.src-chip{transition:transform .18s var(--ease),background .16s,color .16s,box-shadow .16s}
+.nav button:active,.tabbar button:active,.src-chip:active{transform:scale(.94)}
+.gcard-h:active .gname{opacity:.6}
+.nsec-h:active .nsname{opacity:.6}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+  html{scroll-behavior:auto}
+}
+
+/* ============================ form ============================ */
+.field{display:flex;flex-direction:column;min-width:0}
+.field label{font-size:12px;color:var(--text-2);margin-bottom:6px;font-weight:520}
+input[type=text],input[type=password],input[type=number],select,textarea{
+  width:100%;height:34px;border:1px solid var(--hair-2);border-radius:var(--r-sm);
+  padding:0 11px;background:var(--glass-input);backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+  box-shadow:inset 0 1px 2px rgba(16,24,40,.04);
+  transition:border-color .16s,box-shadow .16s,background .16s;
+}
+input::placeholder,textarea::placeholder{color:var(--text-3)}
+textarea{height:auto;padding:12px 13px;line-height:1.65;resize:vertical;
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;
+  background:rgba(255,255,255,.66)}
+input:focus,select:focus,textarea:focus{
+  outline:none;background:#fff;border-color:rgba(0,122,255,.45);
+  box-shadow:0 0 0 3.5px rgba(0,122,255,.16),inset 0 1px 2px rgba(16,24,40,.03)}
+select{appearance:none;cursor:pointer;padding-right:30px;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238e8e93' stroke-width='2.4' stroke-linecap='round'><path d='M6 9l6 6 6-6'/></svg>");
+  background-repeat:no-repeat;background-position:right 11px center}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px}
+.form-row{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end}
+.form-row .field{flex:1;min-width:180px}
+.form-foot{display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  margin-top:18px;padding-top:16px;border-top:1px solid var(--hair)}
+.form-foot .spacer{margin-left:auto}
+.search{position:relative;flex:1;min-width:180px;max-width:300px}
+.search input{padding-left:33px;padding-right:28px}
+.search > svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);stroke:var(--text-3)}
+.search .clr{position:absolute;right:7px;top:50%;transform:translateY(-50%);width:18px;height:18px;
+  border:0;background:rgba(60,60,67,.12);border-radius:50%;color:var(--text-2);cursor:pointer;
+  display:none;align-items:center;justify-content:center;font-size:12px;line-height:1}
+.search.has .clr{display:flex}
+.search .clr:hover{background:rgba(60,60,67,.2)}
+.switch{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;color:var(--text-2);
+  cursor:pointer;user-select:none}
+.switch input{width:15px;height:15px;accent-color:var(--accent);cursor:pointer;flex:0 0 15px}
+.suffix{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--text-3)}
+.suffix input{width:70px;height:30px;text-align:center}
+details.adv{margin-top:16px;border-top:1px dashed var(--hair-2);padding-top:14px}
+details.adv summary{font-size:12.5px;color:var(--text-2);cursor:pointer;list-style:none;
+  display:flex;align-items:center;gap:6px;width:fit-content}
+details.adv summary::-webkit-details-marker{display:none}
+details.adv summary::before{content:"+";display:flex;align-items:center;justify-content:center;
+  width:16px;height:16px;border-radius:5px;background:rgba(60,60,67,.1);font-size:12px;color:var(--text-2)}
+details.adv[open] summary::before{content:"−"}
+details.adv summary:hover{color:var(--accent)}
+details.adv .grid{margin-top:14px}
+
+/* ============================ segmented / chips ============================ */
+.seg{display:flex;flex-wrap:wrap;gap:2px;padding:3px;border-radius:12px;
+  background:rgba(60,60,67,.07);width:fit-content;max-width:100%;
+  box-shadow:inset 0 1px 2px rgba(16,24,40,.05)}
+.seg button{
+  height:27px;padding:0 12px;border:0;background:transparent;border-radius:9px;
+  font-size:12.5px;color:var(--text-2);cursor:pointer;
+  transition:background .16s,color .16s,box-shadow .16s;white-space:nowrap;
+}
+.seg button:hover{color:var(--text)}
+.seg button.on{background:#fff;color:var(--text);font-weight:580;
+  box-shadow:0 1px 2px rgba(16,24,40,.1),0 4px 10px -6px rgba(16,24,40,.28),var(--hi)}
+.strat-desc{font-size:12px;color:var(--text-3);margin-top:9px;line-height:1.6}
+
+/* ---------- 规则表单 ---------- */
+.rcmt{margin-bottom:10px;border:1px solid var(--hair);border-radius:var(--r-sm);
+  background:rgba(60,60,67,.045);overflow:hidden}
+.rcmt summary{padding:8px 13px;font-size:12px;color:var(--text-3);cursor:pointer;
+  list-style:none;display:flex;align-items:center;gap:7px;user-select:none}
+.rcmt summary::-webkit-details-marker{display:none}
+.rcmt summary:hover{color:var(--text-2)}
+.rcmt textarea{display:block;margin:0 12px 12px;width:calc(100% - 24px);min-height:88px;
+  font-size:12px;background:rgba(255,255,255,.72)}
+.rtable{border:1px solid var(--hair);border-radius:12px;overflow:hidden;
+  background:rgba(255,255,255,.5)}
+.rhead,.rrow{display:grid;grid-template-columns:24px 158px minmax(140px,1fr) 156px 92px 88px;
+  gap:8px;align-items:center;padding:5px 12px}
+.rhead{background:transparent;font-size:10.5px;color:var(--text-3);font-weight:600;
+  letter-spacing:.06em;text-transform:uppercase;border-bottom:1px solid var(--hair);
+  padding:8px 12px}
+.rrow{border-bottom:1px solid var(--hair);background:transparent;transition:background .14s}
+.rrow:last-child{border-bottom:none}
+.rrow:hover{background:rgba(255,255,255,.78)}
+.rrow.raw{background:rgba(255,159,10,.07);box-shadow:inset 2px 0 0 rgba(255,159,10,.55)}
+.rrow.raw:hover{background:rgba(255,159,10,.11)}
+.rrow.final{background:rgba(0,122,255,.035)}
+.rrow.final:hover{background:rgba(0,122,255,.06)}
+.ridx{font-size:11px;color:var(--text-3);text-align:center;font-variant-numeric:tabular-nums}
+.rrow select,.rrow input[type=text]{height:28px;font-size:12.5px;width:100%;min-width:0;
+  border-color:transparent;border-radius:7px;background-color:rgba(60,60,67,.055);
+  box-shadow:none}
+.rrow select:hover,.rrow input[type=text]:hover{background-color:rgba(60,60,67,.09)}
+.rrow select:focus,.rrow input[type=text]:focus{background-color:#fff;
+  border-color:rgba(0,122,255,.4);box-shadow:0 0 0 3px rgba(0,122,255,.12)}
+.rrow .rops{display:flex;gap:2px;justify-content:flex-end;opacity:0;transition:opacity .15s}
+.rrow:hover .rops{opacity:1}
+.rraw{grid-column:2 / 5;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;
+  color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rrow .switch{font-size:11.5px;white-space:nowrap;color:var(--text-3)}
+.rtag{font-size:10.5px;padding:2px 8px;border-radius:999px;border:1px solid rgba(255,159,10,.3);
+  background:rgba(255,159,10,.1);color:var(--warn);white-space:nowrap;font-weight:540}
+.rtag.ftag{border-color:transparent;background:var(--accent-soft);color:var(--accent-2)}
+@media (max-width:820px){
+  .rhead{display:none}
+  /* 规则行：序号钉在左，类型/值/动作排成紧凑网格，不再整块堆叠 */
+  .rrow{grid-template-columns:22px minmax(0,1fr) minmax(0,1fr);
+    grid-template-areas:"idx type type" "idx val val" "idx act nr" "idx ops ops";
+    gap:7px;padding:10px 12px}
+  .rrow>.ridx{grid-area:idx;align-self:start;line-height:32px}
+  .rrow>.rtype{grid-area:type}
+  .rrow>.rval{grid-area:val}
+  .rrow>.raction{grid-area:act}
+  .rrow>.rnr{grid-area:nr;justify-self:start}
+  .rrow>.rops{grid-area:ops;justify-content:flex-end}
+  .rrow.raw{grid-template-areas:"idx tag tag" "idx raw raw" "idx ops ops"}
+  .rrow.raw>.rtag{grid-area:tag}
+  .rrow.raw>.rraw{grid-area:raw;white-space:normal;word-break:break-all}
+  .rrow.raw>.dim,.rrow.raw>span:not(.ridx):not(.rtag){display:none}
+  .rrow.final{grid-template-areas:"idx tag tag" "idx act act" "idx ops ops"}
+  .rrow.final>.dim,.rrow.final>span:not(.ridx):not(.rtag){display:none}
+}
+.src-chips{display:flex;flex-wrap:wrap;gap:6px}
+.src-chip{
+  display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 12px;border-radius:999px;
+  border:1px solid var(--hair-2);background:rgba(255,255,255,.5);font-size:12.5px;
+  color:var(--text-2);cursor:pointer;transition:all .16s;white-space:nowrap;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.7);
+}
+.src-chip:hover{border-color:rgba(0,122,255,.3);color:var(--text);background:rgba(255,255,255,.8)}
+.src-chip.on{border-color:rgba(0,122,255,.4);background:rgba(0,122,255,.12);color:var(--accent-2);
+  font-weight:580;box-shadow:0 2px 8px -5px rgba(0,122,255,.5),inset 0 1px 0 rgba(255,255,255,.5)}
+.src-chip .dot{width:5px;height:5px;border-radius:50%;background:currentColor;flex:0 0 5px}
+
+/* ============================ pills ============================ */
+.pill{display:inline-flex;align-items:center;gap:5px;height:21px;padding:0 9px;border-radius:999px;
+  font-size:11px;font-weight:540;letter-spacing:.01em;background:rgba(60,60,67,.08);
+  color:var(--text-2);white-space:nowrap;border:1px solid transparent}
+.pill .dot{width:5px;height:5px;border-radius:50%;background:currentColor;flex:0 0 5px;opacity:.9}
+.pill.acc{background:var(--accent-soft);color:var(--accent-2)}
+.pill.ok{background:var(--ok-soft);color:var(--ok)}
+.pill.warn{background:var(--warn-soft);color:var(--warn)}
+.pill.bad{background:var(--danger-soft);color:var(--danger)}
+.pill.info{background:var(--info-soft);color:var(--info)}
+.pill.line{background:transparent;border:1px solid var(--hair-2);color:var(--text-3)}
+.pill.mut{background:transparent;border:1px dashed var(--hair-2);color:var(--text-3)}
+.dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex:0 0 6px}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
+.dim{color:var(--text-3);font-size:12px}
+
+/* ---- 轻量元信息组件（替代彩色药丸墙） ---- */
+.gmeta{display:inline-flex;align-items:center;font-size:12px;color:var(--text-3);
+  white-space:nowrap;letter-spacing:.01em}
+.gmeta b{color:var(--text-2);font-weight:560;font-variant-numeric:tabular-nums}
+.lat{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:540;
+  font-variant-numeric:tabular-nums;white-space:nowrap}
+.lat .dot{width:5px;height:5px}
+.lat.ok{color:var(--ok)}
+.lat.warn{color:var(--warn)}
+.lat.bad{color:var(--danger)}
+.lat.mut,.lat.line{color:var(--text-3)}
+.lat.line .dot{opacity:.45}
+.proto{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;
+  color:var(--text-3);letter-spacing:.06em;text-transform:uppercase}
+.meta-tag{display:inline-flex;align-items:center;font-size:11.5px;color:var(--text-3);
+  white-space:nowrap}
+.meta-tag.acc{color:var(--accent-2)}
+
+/* ============================ card ============================ */
+.card{
+  background:var(--glass);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
+  border:1px solid var(--edge);border-radius:var(--r);box-shadow:var(--sh-1),var(--hi);
+  margin-bottom:16px;overflow:hidden;
+}
+.card-head{display:flex;align-items:center;gap:10px;padding:15px 20px;
+  border-bottom:1px solid var(--hair);flex-wrap:wrap}
+.card-head h2{font-size:13.5px;font-weight:620;letter-spacing:-.15px}
+.card-head .hint{font-size:12px;color:var(--text-3)}
+.card-head .right{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.card-body{padding:20px}
+.card-body.tight{padding:13px 20px}
+.card-foot{padding:12px 20px;border-top:1px solid var(--hair);
+  font-size:12px;color:var(--text-3);display:flex;gap:10px;align-items:center;flex-wrap:wrap;
+  background:rgba(255,255,255,.36)}
+.section-title{display:flex;align-items:center;gap:12px;margin:28px 0 14px}
+.section-title h2{font-size:12px;font-weight:620;color:var(--text-3);letter-spacing:.06em;
+  text-transform:uppercase}
+.section-title .line{flex:1;height:1px;background:var(--hair)}
+.section-title .n{font-size:12px;color:var(--text-3)}
+
+/* ============================ group cards（Surge 风格） ============================ */
+.ggrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:12px}
+.gcard{
+  background:rgba(255,255,255,.82);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
+  border:1px solid var(--edge);border-radius:12px;box-shadow:var(--sh-1);
+  transition:box-shadow .22s,border-color .22s;display:flex;flex-direction:column;min-width:0;
+}
+.gcard:hover{box-shadow:var(--sh-2);border-color:rgba(0,122,255,.22)}
+.gcard-h{display:flex;align-items:center;gap:8px;padding:13px 16px 0;cursor:pointer;
+  user-select:none}
+.gcard-h:hover .gname{color:var(--accent-2)}
+.gname{font-size:14px;font-weight:600;letter-spacing:-.2px}
+.gstrat{margin-left:auto;font-size:11px;color:var(--text-3);letter-spacing:.02em;
+  white-space:nowrap}
+.gchev{flex:0 0 14px;color:var(--text-3);display:flex;align-items:center;
+  transition:transform .2s}
+.gcard.col .gchev{transform:rotate(-90deg)}
+.gsub{display:flex;align-items:center;gap:10px;padding:4px 16px 12px;
+  font-size:11.5px;color:var(--text-3);font-variant-numeric:tabular-nums}
+.gsub b{color:var(--text-2);font-weight:560}
+.gsub .gactions{margin-left:auto;display:flex;gap:2px;align-items:center}
+.gsub .gactions .btn{padding:0 6px;height:25px;font-size:11px;color:var(--text-3)}
+.gsub .gactions .btn:hover{color:var(--accent-2)}
+.gsub .gactions .btn.danger:hover{color:var(--danger)}
+/* 行内小图标按钮去框化：无边框无底色，悬停浮出淡色圆角，按压回缩 */
+.gsub .gactions .btn,.ncard-s .nops .btn{
+  width:29px;height:29px;border:0;background:transparent;box-shadow:none;
+  backdrop-filter:none;-webkit-backdrop-filter:none;border-radius:9px;color:var(--text-3)}
+.gsub .gactions .btn:hover,.ncard-s .nops .btn:hover{
+  background:rgba(0,122,255,.09);color:var(--accent-2)}
+.gsub .gactions .btn.danger:hover,.ncard-s .nops .btn.danger:hover{
+  background:rgba(255,59,48,.1);color:var(--danger)}
+.gsub .gactions .btn:active,.ncard-s .nops .btn:active{transform:scale(.86)}
+/* 展开后的节点行：Surge 式——名称居左，纯文本延迟居右，发丝线分隔 */
+.gcard-b{border-top:1px solid var(--hair);display:flex;flex-direction:column;flex:1}
+.srow{display:flex;align-items:center;gap:10px;padding:7px 16px;font-size:12.5px;
+  border-bottom:1px solid var(--hair);min-width:0}
+.srow:nth-last-child(1){border-bottom:0}
+.srow:hover{background:rgba(0,122,255,.05)}
+.srow .sn{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.srow .lat{flex:0 0 auto;font-size:11.5px;font-variant-numeric:tabular-nums}
+.srow.more{color:var(--text-3);font-size:11.5px;cursor:default}
+.srow.more:hover{background:none}
+.gfoot{display:flex;align-items:center;gap:12px;padding:9px 16px;
+  border-top:1px solid var(--hair);background:rgba(255,255,255,.5);margin-top:auto}
+.gfoot .switch{font-size:11.5px}
+.gfoot .spacer{margin-left:auto}
+.gfoot .url-mini{height:26px}
+.url-mini{display:flex;align-items:center;gap:6px;max-width:100%;min-width:0;
+  background:none;border:0;border-radius:999px;
+  padding:0 4px 0 8px;height:26px;color:var(--text-3)}
+.url-mini svg{stroke:var(--text-3)}
+.url-mini code{font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--text-3);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px}
+.gblock-label{font-size:11px;font-weight:620;color:var(--text-3);letter-spacing:.08em;
+  text-transform:uppercase;margin-bottom:10px}
+/* 纯文本健康摘要（分组/发布页通用） */
+.ghealth{white-space:nowrap}
+.ghealth i{font-style:normal;opacity:.55;margin:0 5px}
+.ghealth .ht-ok{color:var(--ok)}
+.ghealth .ht-warn{color:var(--warn)}
+.ghealth .ht-bad{color:var(--danger)}
+
+/* ============================ node cards（Surge 风格） ============================ */
+.nfbar{display:flex;gap:6px;flex-wrap:wrap;padding:0 20px 14px}
+.ngrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));
+  gap:8px;padding:0 20px 20px}
+/* 节点池按订阅来源分节：可折叠的 Surge 式纯文本节标题 */
+.nsec .nsec-h{display:flex;align-items:center;gap:7px;padding:12px 20px 10px;
+  cursor:pointer;user-select:none}
+.nsec:first-child .nsec-h{padding-top:4px}
+.nsec .nsec-h:hover .nsname{color:var(--accent-2)}
+.nsec .nchev{display:flex;color:var(--text-3);transition:transform .16s}
+.nsec.col .nchev{transform:rotate(-90deg)}
+.nsec .nsname{font-size:13px;font-weight:600;color:var(--text-2);white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+.nsec .nscnt{font-size:11.5px;color:var(--text-3);white-space:nowrap}
+.nsec.col + .nsec .nsec-h{padding-top:12px}
+.ncard{background:rgba(255,255,255,.72);border:1px solid var(--hair);
+  border-radius:10px;padding:9px 12px;transition:border-color .18s,box-shadow .18s}
+.ncard:hover{border-color:rgba(0,122,255,.25);box-shadow:0 2px 8px rgba(20,30,60,.06)}
+.ncard-t{display:flex;align-items:center;gap:8px}
+.ncard-t .nname{flex:1;min-width:0;font-size:12.5px;font-weight:520;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ncard-t .lat{flex:0 0 auto;font-size:11.5px;font-variant-numeric:tabular-nums}
+.ncard-s{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-3);
+  margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ncard-s .dim{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.ncard-s .nops{display:flex;gap:2px;opacity:0;transition:opacity .16s;flex:0 0 auto}
+.ncard:hover .nops{opacity:1}
+
+/* ============================ table ============================ */
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;font-size:11px;font-weight:620;color:var(--text-3);letter-spacing:.07em;
+  text-transform:uppercase;padding:11px 20px;background:rgba(255,255,255,.3);
+  border-bottom:1px solid var(--hair);white-space:nowrap}
+td{padding:11px 20px;border-bottom:1px solid var(--hair);font-size:13px;vertical-align:middle;
+  color:var(--text-2)}
+tbody tr:last-child td{border-bottom:0}
+tbody tr{transition:background .14s}
+tbody tr:hover{background:rgba(255,255,255,.5)}
+.cell-main{font-weight:560;color:var(--text);display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.cell-sub{font-size:11.5px;color:var(--text-3);margin-top:3px}
+code.chip{background:rgba(60,60,67,.08);border:1px solid var(--hair);border-radius:6px;
+  padding:2px 7px;font-size:11px;font-family:ui-monospace,Menlo,monospace;color:var(--text-2)}
+.cell-main code.chip{background:transparent;border-color:var(--hair-2);padding:1px 6px;
+  font-size:10.5px;color:var(--text-3);font-weight:400}
+.row-ops{display:flex;gap:6px;justify-content:flex-end;opacity:.4;transition:opacity .16s}
+tr:hover .row-ops{opacity:1}
+.nowrap{white-space:nowrap}
+.right{text-align:right}
+
+/* ============================ publish rows ============================ */
+.prow{display:flex;align-items:center;gap:16px;padding:15px 20px;border-bottom:1px solid var(--hair);
+  flex-wrap:wrap}
+.prow:last-child{border-bottom:0}
+.prow-main{flex:1;min-width:260px}
+.prow-title{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:7px}
+.prow-url{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.66);
+  border:1px solid var(--hair);border-radius:var(--r-xs);padding:7px 10px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.8)}
+.prow-url code{font-family:ui-monospace,Menlo,monospace;font-size:11.5px;color:var(--text-2);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
+.prow-ops{display:flex;gap:8px;flex-wrap:wrap}
+.urlrow{display:flex;align-items:center;gap:12px;padding:11px 14px;background:rgba(255,255,255,.66);
+  border:1px solid var(--hair);border-radius:var(--r-sm);margin-bottom:10px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.8)}
+.urlrow:last-child{margin-bottom:0}
+.urlrow .tag{font-size:11px;font-weight:620;color:var(--text-3);flex:0 0 auto;width:34px;
+  letter-spacing:.04em}
+.urlrow .u{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  font-family:ui-monospace,Menlo,monospace;font-size:12px;color:var(--text-2)}
+.steps{counter-reset:s;list-style:none}
+.steps li{position:relative;padding:0 0 18px 34px;font-size:13px;color:var(--text-2);line-height:1.65}
+.steps li:last-child{padding-bottom:0}
+.steps li::before{counter-increment:s;content:counter(s);position:absolute;left:0;top:1px;
+  width:22px;height:22px;border-radius:50%;
+  background:linear-gradient(180deg,#fdfdfe,#eef2f8);
+  color:var(--text-2);font-size:11px;font-weight:620;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 1px 2px rgba(16,24,40,.08),inset 0 0 0 1px var(--hair-2),var(--hi)}
+.steps li::after{content:"";position:absolute;left:11px;top:26px;bottom:4px;width:1px;
+  background:var(--hair)}
+.steps li:last-child::after{display:none}
+.steps b{color:var(--text);font-weight:600}
+
+/* ============================ empty / toast / dialog ============================ */
+.empty{display:flex;flex-direction:column;align-items:center;gap:12px;padding:54px 20px;
+  color:var(--text-3);font-size:13px;text-align:center}
+.empty svg{stroke:var(--hair-2)}
+#toast{position:fixed;right:22px;bottom:22px;display:flex;flex-direction:column;gap:9px;
+  z-index:90;pointer-events:none}
+/* 弹框打开时提示要能被看见：toast 容器以 popover 进入顶层（老的浏览器自动降级） */
+#toast[popover]{position:fixed;inset:auto 22px 22px auto;margin:0;width:auto;height:auto;
+  max-width:none;max-height:none;border:0;padding:0;background:transparent;box-shadow:none;
+  overflow:visible;display:flex;flex-direction:column;gap:9px;color:inherit}
+#toast[popover]:not(:popover-open){display:flex}
+.toast{display:flex;align-items:center;gap:10px;color:var(--text);
+  background:var(--glass-strong);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
+  border:1px solid var(--edge);border-left:2.5px solid #34c759;border-radius:14px;
+  padding:11px 16px;font-size:13px;box-shadow:var(--sh-2),var(--hi);
+  animation:tin .24s cubic-bezier(.2,.8,.3,1);max-width:380px}
+.toast.err{border-left-color:#ff3b30}
+.toast svg{stroke:var(--ok);flex:0 0 16px}
+.toast.err svg{stroke:var(--danger)}
+@keyframes tin{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:none}}
+dialog{border:1px solid var(--edge);border-radius:var(--r-lg);padding:0;width:620px;
+  max-width:94vw;color:var(--text);background:rgba(255,255,255,.8);
+  margin:auto;   /* 全局 reset 会清掉 margin:auto，必须显式恢复才能居中 */
+  backdrop-filter:blur(34px) saturate(190%);-webkit-backdrop-filter:blur(34px) saturate(190%);
+  box-shadow:var(--sh-3),var(--hi)}
+dialog::backdrop{background:rgba(24,28,38,.28);backdrop-filter:blur(6px)}
+dialog.wide{width:860px}
+dialog.wide .dlg-body{max-height:66vh}
+.dlg-body > .field:not(:first-child){margin-top:14px}
+.dlg-head{padding:20px 24px 16px;border-bottom:1px solid var(--hair)}
+.dlg-head h3{font-size:15px;font-weight:620;letter-spacing:-.2px}
+.dlg-head p{font-size:12.5px;color:var(--text-2);margin-top:5px}
+.dlg-body{padding:20px 24px;max-height:58vh;overflow:auto}
+.dlg-foot{padding:14px 24px;border-top:1px solid var(--hair);
+  display:flex;gap:8px;align-items:center;border-radius:0 0 var(--r-lg) var(--r-lg);
+  background:rgba(255,255,255,.4)}
+.dlg-foot .spacer{margin-left:auto}
+.mlist{border:1px solid var(--hair);border-radius:var(--r-sm);max-height:330px;overflow:auto;
+  background:rgba(255,255,255,.6)}
+.mrow{display:flex;align-items:center;gap:9px;padding:8px 12px;font-size:12.5px;
+  border-bottom:1px solid rgba(120,130,150,.08);cursor:pointer;transition:background .14s}
+.mrow:last-child{border-bottom:0}
+.mrow:hover{background:rgba(0,122,255,.05)}
+.mrow .mname{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mrow .lat{flex:0 0 auto}
+.npick{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.mgrp{position:sticky;top:0;z-index:1;display:flex;align-items:center;gap:8px;
+  padding:8px 12px;font-size:11.5px;font-weight:560;color:var(--text-2);
+  background:rgba(244,246,250,.94);backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--hair);cursor:pointer;user-select:none}
+.mgrp:hover{color:var(--text)}
+.mgrp .gchev{flex:0 0 12px;transition:transform .2s}
+.mgrp.col .gchev{transform:rotate(-90deg)}
+.mgrp .cnt{font-weight:480;color:var(--text-3);font-variant-numeric:tabular-nums}
+.mgrp .all{margin-left:auto;font-weight:520;font-size:11px;color:var(--accent-2);
+  cursor:pointer;user-select:none;padding:2px 7px;border-radius:6px}
+.mgrp .all:hover{background:rgba(0,122,255,.1)}
+/* ---------- 穿梭框（成员挑选） ---------- */
+.tfx{display:grid;grid-template-columns:1fr 40px 1fr;gap:0;flex:1;min-height:0}
+.tfcol{display:flex;flex-direction:column;min-width:0;border:1px solid var(--hair);
+  border-radius:var(--r-sm);background:rgba(255,255,255,.6);overflow:hidden}
+.tfhead{display:flex;align-items:center;gap:8px;padding:9px 13px;font-size:12px;
+  font-weight:600;color:var(--text-2);border-bottom:1px solid var(--hair);
+  background:rgba(242,244,248,.78)}
+.tfhead .cnt{font-weight:480;font-size:11.5px;color:var(--text-3);font-variant-numeric:tabular-nums}
+.tfhead .tail{margin-left:auto;font-weight:480;font-size:11px;color:var(--text-3)}
+.tfbody{flex:1;overflow:auto;min-height:0}
+.tfmid{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px}
+.tfbody .empty{text-align:center;color:var(--text-3);font-size:12.5px;line-height:1.9}
+.mrow.on{background:rgba(0,122,255,.05)}
+.mrow.on .mname{color:var(--text-3)}
+.mrow .tick{flex:0 0 16px;height:16px;color:var(--accent);display:flex;align-items:center}
+.rrow{cursor:default}
+.rrow .idx{flex:0 0 18px;height:18px;border-radius:5px;background:rgba(0,122,255,.1);
+  color:var(--accent-2);font-size:10.5px;font-weight:600;display:flex;
+  align-items:center;justify-content:center;font-variant-numeric:tabular-nums}
+.rops{display:flex;gap:2px;flex:0 0 auto}
+.mbtn{width:22px;height:22px;border:0;border-radius:6px;background:transparent;
+  color:var(--text-3);font-size:13px;line-height:1;cursor:pointer;display:flex;
+  align-items:center;justify-content:center;font-family:inherit}
+.mbtn:hover:not(:disabled){background:rgba(0,122,255,.1);color:var(--accent-2)}
+.mbtn:disabled{opacity:.3;cursor:default}
+.mbtn.big{width:30px;height:30px;border:1px solid var(--hair);border-radius:9px;
+  background:rgba(255,255,255,.7);color:var(--text-2);font-size:15px;
+  box-shadow:0 1px 2px rgba(0,0,0,.04)}
+.mbtn.big:hover{background:rgba(0,122,255,.08);color:var(--accent-2)}
+@media (max-width:760px){
+  .tfx{grid-template-columns:1fr;gap:10px}
+  .tfmid{flex-direction:row;justify-content:center}
+  .tfbody{max-height:200px}
+}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+@media (max-width:900px){
+  .stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .stat:nth-child(2){border-right:0}
+  .stat:nth-child(1),.stat:nth-child(2){border-bottom:1px solid var(--hair)}
+  .gcard-body{grid-template-columns:1fr;gap:18px}
+}
+@media (max-width:820px){
+  .app{flex-direction:column}
+  .sidebar,.app.collapsed .sidebar{width:100%;flex:none;height:auto;position:static;
+    border-right:0;border-bottom:1px solid var(--hair);padding:12px}
+  .brand,.app.collapsed .brand{padding:4px 6px 12px;justify-content:flex-start}
+  .brand-text,.app.collapsed .brand-text{display:block}
+  .side-toggle{display:none}
+  .nav{flex-direction:row;overflow-x:auto;gap:6px}
+  .nav-label,.app.collapsed .nav-label{display:none}
+  .nav button,.app.collapsed .nav button{width:auto;flex:0 0 auto;
+    justify-content:flex-start;gap:10px;padding:8.5px 12px}
+  .nav-text,.app.collapsed .nav-text{display:inline}
+  .nav .count,.app.collapsed .nav .count{display:none}
+  .side-foot{display:none}
+  .content{padding:0 16px 50px}
+  .page-head{position:static;background:none;backdrop-filter:none;margin:0 0 4px;padding:18px 0 14px}
+  .card-body{padding:16px}
+  th,td{padding-left:14px;padding-right:14px}
+}
+/* ---------- 手机端（≤640px）：侧栏退场，底部标签栏 + 触屏优化 ---------- */
+.tabbar{display:none}
+.mh-only{display:none}
+@media (max-width:640px){
+  .sidebar{display:none}
+  .app{display:block}
+  .tabbar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:60;
+    padding:6px 8px calc(6px + env(safe-area-inset-bottom));
+    background:rgba(250,252,255,.86);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
+    border-top:1px solid var(--hair)}
+  .tabbar button{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;
+    padding:5px 0 3px;border:0;background:transparent;border-radius:10px;
+    color:var(--text-3);font-size:10.5px;font-family:inherit;cursor:pointer;
+    transition:color .16s;-webkit-tap-highlight-color:transparent}
+  .tabbar button svg{stroke:currentColor}
+  .tabbar button.active{color:var(--accent)}
+  .content{padding:0 14px calc(86px + env(safe-area-inset-bottom));max-width:100%}
+  .page-head{padding:14px 0 10px;gap:8px}
+  .page-head h1{font-size:17px}
+  .page-desc{display:none}
+  /* 操作按钮收成一条可横滑的行，不再换行堆叠 */
+  .head-actions{flex-wrap:nowrap;overflow-x:auto;margin-left:0;gap:7px;
+    -webkit-overflow-scrolling:touch;scrollbar-width:none;padding:2px 2px 4px}
+  .head-actions::-webkit-scrollbar{display:none}
+  .head-actions .btn{flex:0 0 auto;height:31px;padding:0 13px;font-size:12px;
+    box-shadow:0 1px 2px rgba(0,122,255,.2),0 4px 12px -7px rgba(0,122,255,.4),
+      inset 0 1px 0 rgba(255,255,255,.42)}
+  .head-actions .btn.ghost{box-shadow:0 1px 1px rgba(16,24,40,.04),var(--hi)}
+  .mh-only{display:flex;flex:0 0 auto;width:31px;height:31px}
+  .mh-only:active{transform:scale(.93)}
+  .section-title{margin:20px 0 10px}
+  .card-body{padding:14px}
+  /* 节点池：小屏两列卡片，来源分节标题贴左右内边距 */
+  .ngrid{grid-template-columns:repeat(auto-fill,minmax(146px,1fr));gap:7px;padding:0 14px 16px}
+  .ncard{padding:8px 10px}
+  .nfbar{padding:0 14px 12px}
+  .nsec .nsec-h{padding:10px 14px 8px}
+  .nsec:first-child .nsec-h{padding-top:2px}
+  .gcard-h{padding:11px 14px 0}
+  .gsub{padding:4px 14px 10px}
+  .srow{padding:8px 14px}
+  .gfoot{padding:9px 14px;flex-wrap:wrap}
+  /* 弹框：占满小屏，纵向滚动 */
+  dialog,dialog.wide{width:calc(100vw - 18px);max-width:620px;max-height:calc(100dvh - 26px)}
+  dialog[open]{display:flex;flex-direction:column}
+  .dlg-head{padding:16px 18px 12px}
+  .dlg-body{padding:16px 18px;max-height:none;flex:1;min-height:0;overflow:auto;
+    -webkit-overflow-scrolling:touch}
+  .dlg-foot{padding:12px 18px calc(12px + env(safe-area-inset-bottom))}
+  .dlg-foot{flex-wrap:wrap;gap:8px}
+  /* iOS：字号 <16px 聚焦时会自动放大页面，统一提到 16px */
+  input,select,textarea{font-size:16px !important}
+  .search input{font-size:16px !important}
+  /* 触屏设备无 hover：节点卡操作按钮常显，加大触点 */
+  .ncard-s .nops{opacity:1}
+  .btn.icon{width:32px;height:32px}
+  .gsub .gactions .btn{width:30px;height:30px}
+  /* 订阅表格 → 卡片列表：每行一张卡，字段带标签 */
+  #subTable{display:block}
+  #subTable thead{display:none}
+  #subTable tbody{display:block}
+  #subTable tr{display:block;background:rgba(255,255,255,.72);border:1px solid var(--hair);
+    border-radius:12px;margin:0 14px 10px;padding:3px 0}
+  #subTable td{display:flex;align-items:center;gap:10px;border:0;padding:7px 14px;text-align:left}
+  #subTable td[data-l]::before{content:attr(data-l);flex:0 0 64px;font-size:11px;color:var(--text-3)}
+  #subTable td:first-child{display:block;padding-bottom:2px}
+  #subTable td:first-child::before{display:none}
+  #subTable td[data-l="操作"]{justify-content:flex-end}
+  #subTable td[data-l="操作"]::before{display:none}
+  /* 规则行控件在 16px 字号下的触控高度 */
+  .rrow select,.rrow input[type=text]{height:34px}
+  .rrow>.ridx{line-height:36px}
+  /* 卡片头部的长说明收起，只留标题 */
+  .card-head .hint{display:none}
+}
+@media (hover:none) and (pointer:coarse){
+  .ncard-s .nops{opacity:1}
+  .row-ops{opacity:.9}
+  .rrow .rops{opacity:1}
+  .ncard:hover{box-shadow:none}
+}
+</style>
+</head>
+<body>
+<h2 class="sr-only">Shadowsocks 配置中心：聚合订阅、按分组配置负载均衡策略并发布订阅链接</h2>
+
+<div id="authView" style="display:none">
+  <div class="auth-card">
+    <div class="auth-mark">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4.5 13h6L11 22l8.5-11h-6L13 2z"/></svg>
+    </div>
+    <h2 id="authTitle">登录</h2>
+    <p id="authDesc">输入管理密码进入配置中心</p>
+    <div class="field">
+      <label>管理密码</label>
+      <input type="password" id="authPassword" placeholder="请输入密码" autocomplete="current-password"
+        onkeydown="if(event.key==='Enter')authSubmit()">
+    </div>
+    <button class="btn" id="authSubmitBtn" style="width:100%;height:38px;margin-top:18px" onclick="authSubmit()">进入配置中心</button>
+    <div class="auth-foot" id="authHint" style="display:none"></div>
+    <button class="btn ghost" id="authRetry" style="display:none;width:100%;height:36px;margin-top:10px" onclick="checkStatus()">重试连接</button>
+    <div class="auth-foot">配置包含节点信息，请勿在公共网络下长期开放</div>
+  </div>
+</div>
+
+<div id="mainView" class="app" style="display:none">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="#fff" aria-hidden="true">
+          <g transform="rotate(45 12 12)">
+            <path d="M12 1.8c2.5 2.3 3.8 5 3.8 8.2v5.4H8.2V10c0-3.2 1.3-5.9 3.8-8.2z"/>
+            <circle cx="12" cy="9.1" r="1.5" fill="#141922"/>
+            <path d="M7.4 12.5c-1.8 1.2-2.7 3-3 5.2 1.9-.4 3.3-1.3 4.2-2.6v-2.6H7.4z"/>
+            <path d="M16.6 12.5c1.8 1.2 2.7 3 3 5.2-1.9-.4-3.3-1.3-4.2-2.6v-2.6h1.2z"/>
+            <path d="M12 15.8c.85.9 1.3 1.9 1.3 3 0 1.2-.45 2.3-1.3 3.2-.85-.9-1.3-2-1.3-3.2 0-1.1.45-2.1 1.3-3z" opacity=".9"/>
+          </g>
+        </svg>
+      </div>
+      <div class="brand-text"><b>shadowrocket config</b><span>订阅与分组管理</span></div>
+    </div>
+    <button class="side-toggle" id="sideToggle" onclick="toggleSide()" title="折叠侧栏"
+      aria-controls="mainView" aria-expanded="true">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+    </button>
+    <nav class="nav">
+      <div class="nav-label">配置</div>
+      <button class="active" data-tab="groups" onclick="switchTab('groups')" title="节点与分组">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.6"/><rect x="14" y="3" width="7" height="7" rx="1.6"/><rect x="3" y="14" width="7" height="7" rx="1.6"/><rect x="14" y="14" width="7" height="7" rx="1.6"/></svg>
+        <span class="nav-text">节点与分组</span><span class="count" id="navGroups">0</span>
+      </button>
+      <button data-tab="subs" onclick="switchTab('subs')" title="订阅聚合">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M4 20h16"/></svg>
+        <span class="nav-text">订阅聚合</span><span class="count" id="navSubs">0</span>
+      </button>
+      <button data-tab="rules" onclick="switchTab('rules')" title="规则">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>
+        <span class="nav-text">规则</span>
+      </button>
+      <button data-tab="publish" onclick="switchTab('publish')" title="发布订阅">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+        <span class="nav-text">发布订阅</span>
+      </button>
+    </nav>
+    <div class="side-foot">
+      <div class="side-stat">
+        <span class="dot" id="sideDot" style="color:var(--ok)"></span>
+        <span>服务运行中</span>
+      </div>
+      <div class="side-stat" id="sideSummary"></div>
+      <button class="btn ghost sm" onclick="openSettings()" title="自动测速 / 登录密码">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1-1.55 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.55-1 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34h0a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55h0a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87v0a1.7 1.7 0 0 0 1.55 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.55 1z"/></svg>
+        <span>设置</span>
+      </button>
+      <button class="btn ghost sm" id="btnLogout" style="margin-top:8px" onclick="logout()" title="退出登录">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
+        <span>退出登录</span>
+      </button>
+    </div>
+  </aside>
+
+  <main class="content">
+    <div class="page-head">
+      <div>
+        <h1 id="pageTitle">分组与策略</h1>
+        <p class="page-desc" id="pageDesc"></p>
+      </div>
+      <div class="head-actions" id="headActions"></div>
+      <button class="btn ghost icon mh-only" onclick="openSettings()" title="自动测速 / 登录密码" aria-label="设置">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1-1.55 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.55-1 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34h0a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55h0a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87v0a1.7 1.7 0 0 0 1.55 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.55 1z"/></svg>
+      </button>
+    </div>
+
+    <!-- ================= 节点与分组 ================= -->
+    <section id="tab-groups">
+      <div class="section-title">
+        <h2>订阅分组</h2>
+        <span class="n" id="groupCountNote"></span>
+        <span class="line"></span>
+      </div>
+      <div id="groupList"></div>
+      <div class="card" id="groupEmpty" style="display:none">
+        <div class="empty">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round"><rect x="3" y="3" width="7" height="7" rx="1.6"/><rect x="14" y="3" width="7" height="7" rx="1.6"/><rect x="3" y="14" width="7" height="7" rx="1.6"/><rect x="14" y="14" width="7" height="7" rx="1.6"/></svg>
+          <div>还没有分组，点右上角「新建分组」创建第一个</div>
+        </div>
+      </div>
+
+      <div class="section-title">
+        <h2>节点池</h2>
+        <span class="n" id="nodeSummary"></span>
+        <span class="line"></span>
+      </div>
+      <div class="card">
+        <div class="card-head" style="padding-bottom:10px">
+          <div class="search" id="nodeSearchWrap" style="max-width:300px">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+            <input type="text" id="nodeSearch" placeholder="搜索名称或服务器" oninput="onNodeSearch()">
+            <button class="clr" onclick="clearNodeSearch()" title="清空">×</button>
+          </div>
+          <div class="right">
+            <button class="btn ghost sm" onclick="openNodeDlg()">添加节点</button>
+          </div>
+        </div>
+        <div class="nfbar" id="nodeFilters"></div>
+        <div id="nodeGrid"></div>
+        <div class="empty" id="nodeEmpty" style="display:none">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/></svg>
+          <div>暂无节点，点上方「添加节点」手工添加，或在弹框里切换「链接粘贴导入」批量粘贴</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= 订阅聚合 ================= -->
+    <section id="tab-subs" style="display:none">
+      <div class="card">
+        <div class="card-head">
+          <h2>订阅源</h2>
+          <span class="hint">刷新时按来源替换旧节点，不会重复堆积</span>
+          <div class="right" id="subSummary"></div>
+        </div>
+        <div class="tbl-wrap">
+          <table id="subTable"><thead><tr>
+            <th>名称 / 地址</th><th style="width:104px">节点</th>
+            <th style="width:22%">归入分组</th><th style="width:120px">状态</th>
+            <th style="width:150px"></th>
+          </tr></thead><tbody></tbody></table>
+        </div>
+        <div class="empty" id="subEmpty" style="display:none">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M4 20h16"/></svg>
+          <div>还没有订阅源，点右上角「添加订阅源」添加第一个</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= 规则 ================= -->
+    <section id="tab-rules" style="display:none">
+      <div class="card">
+        <div class="card-head">
+          <h2>分流规则</h2>
+          <span class="hint">自上而下匹配，随配置文件一起下发给 Shadowrocket</span>
+          <div class="right">
+            <span class="pill" id="ruleMode">—</span>
+            <span class="dim" id="ruleStats"></span>
+          </div>
+        </div>
+        <div class="card-body">
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px">
+            <div class="seg" id="ruleSeg">
+              <button data-rmode="form" class="on" onclick="setRuleMode('form')">表单配置</button>
+              <button data-rmode="text" onclick="setRuleMode('text')">配置文件</button>
+            </div>
+            <span class="dim" id="ruleHint">选好匹配类型、填值、选动作即可，顺序即优先级</span>
+            <span class="spacer" style="flex:1"></span>
+            <span class="rtag" id="ruleUnknownNote" style="display:none"></span>
+          </div>
+
+          <!-- 表单模式 -->
+          <div id="ruleFormPane">
+            <details id="ruleComments" class="rcmt" style="display:none"></details>
+            <div class="rtable">
+              <div class="rhead">
+                <span>#</span><span>匹配类型</span><span>值</span><span>动作</span>
+                <span>选项</span><span style="text-align:right">操作</span>
+              </div>
+              <div id="ruleRows"></div>
+            </div>
+            <div style="margin-top:12px">
+              <button class="btn ghost sm" onclick="openRuleDlg()">+ 新增规则</button>
+              <button class="btn ghost sm" onclick="openRuleDlg('final')">+ 兜底 FINAL</button>
+              <span class="dim" style="font-size:12px">添加后可在表格里直接微调</span>
+            </div>
+          </div>
+
+          <!-- 文本模式 -->
+          <div id="ruleTextPane" style="display:none">
+            <textarea id="rulesText" spellcheck="false" style="min-height:420px"
+              oninput="updateRuleMode()"></textarea>
+          </div>
+
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:14px">
+            <span class="dim">模板</span>
+            <button class="btn ghost sm" onclick="applyRuleTpl('basic')">基础分流（国内直连）</button>
+            <button class="btn ghost sm" onclick="applyRuleTpl('global')">全局代理</button>
+            <button class="btn ghost sm" onclick="applyRuleTpl('direct')">全部直连</button>
+            <button class="btn ghost sm" onclick="resetRules()">撤回修改</button>
+          </div>
+        </div>
+        <div class="card-foot">
+          <button class="btn" onclick="saveRules()">保存规则</button>
+          <span class="spacer" style="flex:1"></span>
+          <span class="dim" id="ruleFootHint">动作可选 <code class="chip">走默认出口</code>
+            <code class="chip">直连</code> <code class="chip">拦截</code>，或指定某个策略组；
+            <code class="chip">FINAL</code> 是兜底出口，建议放最后一行</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= 发布 ================= -->
+    <section id="tab-publish" style="display:none">
+      <div class="card">
+        <div class="card-head">
+          <h2>Shadowrocket（iOS）适配</h2>
+          <span class="hint">用 iPhone 打开本页面后点按导入链接，或把链接复制到手机</span>
+        </div>
+        <div class="card-body">
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            <a class="btn" id="srImportBtn" href="#" onclick="toast('请在 iPhone 上用 Safari 打开本页面后点按');return false;">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M4 21h16"/></svg>
+              一键导入订阅（节点列表）
+            </a>
+            <span class="dim">等价于 Shadowrocket「首页 → + → 类型 Subscribe → 粘贴订阅链接」，刷新订阅即同步</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:14px">
+            <a class="btn ghost" id="srConfBtn" href="#" onclick="toast('请在 iPhone 上用 Safari 打开本页面后点按');return false;">
+              一键导入配置（节点 + 分组 + 规则）
+            </a>
+            <span class="dim">完整配置文件：含策略组与分流规则，更新订阅即更新</span>
+          </div>
+          <div class="urlrow" style="margin-top:16px">
+            <span class="tag">配置</span><span class="u" id="pubConfUrl"></span>
+            <button class="btn ghost sm" onclick="copyBtn(this, state.publish.conf_url)">复制</button>
+          </div>
+          <div class="grid" style="margin-top:16px">
+            <div class="field"><label>默认出口（[Rule] FINAL 指向的分组）</label>
+              <select id="srFinal" onchange="saveSrSettings()"></select></div>
+            <div class="field"><label>UDP 转发</label>
+              <label class="switch" style="height:36px"><input type="checkbox" id="srUdp" onchange="saveSrSettings()">在配置中启用 udp-relay</label></div>
+            <div class="field"><label>测速地址</label>
+              <input type="text" id="srTestUrl" onchange="saveSrSettings()"></div>
+            <div class="field"><label>测速间隔（秒）</label>
+              <input type="number" id="srInterval" onchange="saveSrSettings()"></div>
+            <div class="field"><label>切换容差（毫秒）</label>
+              <input type="number" id="srTolerance" onchange="saveSrSettings()"></div>
+          </div>
+        </div>
+        <div class="card-foot">策略映射：延迟优先 → url-test · 故障转移 → fallback · 轮询/随机 → load-balance · 手动顺序 → select；分流规则来自「规则」页的 Surge 规则；节点行按各协议语法生成（vless / vmess / trojan / hysteria2 / tuic / ss / ssr / anytls / socks5 / http）</div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h2>全部节点订阅</h2>
+          <span class="hint">节点池中所有节点的聚合订阅</span>
+          <div class="right">
+            <a class="btn ghost sm" id="groupsJsonLink" href="#" target="_blank">分组索引 JSON</a>
+            <button class="btn ghost sm" onclick="openPreview(state.publish.raw_url,'全部节点')">预览内容</button>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="urlrow">
+            <span class="tag">订阅</span><span class="u" id="pubSubUrl"></span>
+            <button class="btn ghost sm" onclick="copyBtn(this, state.publish.sub_url)">复制</button>
+          </div>
+          <div class="urlrow">
+            <span class="tag">规则</span><span class="u" id="pubAclUrl"></span>
+            <button class="btn ghost sm" onclick="copyBtn(this, state.publish.acl_url)">复制</button>
+          </div>
+        </div>
+        <div class="card-foot">
+          <button class="btn danger sm" onclick="rotateToken()">重置 Token</button>
+          <span class="dim">重置后所有旧链接立即失效，客户端需重新添加</span>
+        </div>
+      </div>
+
+      <div class="section-title">
+        <h2>分组订阅链接</h2>
+        <span class="n">客户端中每个分组即一个独立节点组</span>
+        <span class="line"></span>
+      </div>
+      <div class="card" id="pubGroupCard"></div>
+
+      <div class="card">
+        <div class="card-head"><h2>客户端使用方法</h2></div>
+        <div class="card-body">
+          <ol class="steps">
+            <li><b>iOS · Shadowrocket（推荐）</b> — 在 iPhone 上打开本页，点上方「一键导入」。要分组与分流规则，请导入「配置文件」：Shadowrocket → 底部「配置」→ 右上角 + → 粘贴配置链接。</li>
+            <li><b>订阅自动更新</b> — 设置 → 服务器订阅 → 打开「打开时更新」；配置文件方式则在「配置」页左滑刷新。改动本页配置后，客户端刷新即同步。</li>
+            <li><b>macOS · ShadowsocksX-NG</b> — 服务器 → 订阅设置 → 添加订阅链接并勾选自动更新；规则链接（rules.acl）填入「编辑 ACL」。</li>
+            <li><b>备份 / 自建静态站</b> — <code class="chip">output/</code> 目录已生成 <code class="chip">subscription.b64</code>、<code class="chip">shadowrocket.conf</code> 与 <code class="chip">group-*.b64</code>，可直接部署到任意静态服务器。</li>
+          </ol>
+        </div>
+        <div class="card-foot">订阅链接包含节点信息，请勿公开分享；若泄露请点「重置 Token」立即作废旧链接</div>
+      </div>
+    </section>
+  </main>
+
+  <!-- 手机端底部标签栏（≤640px 显示） -->
+  <nav class="tabbar" aria-label="页面切换">
+    <button data-tab="groups" onclick="switchTab('groups')">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.6"/><rect x="14" y="3" width="7" height="7" rx="1.6"/><rect x="3" y="14" width="7" height="7" rx="1.6"/><rect x="14" y="14" width="7" height="7" rx="1.6"/></svg>
+      <span>节点</span>
+    </button>
+    <button data-tab="subs" onclick="switchTab('subs')">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M4 20h16"/></svg>
+      <span>订阅</span>
+    </button>
+    <button data-tab="rules" onclick="switchTab('rules')">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>
+      <span>规则</span>
+    </button>
+    <button data-tab="publish" onclick="switchTab('publish')">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+      <span>发布</span>
+    </button>
+  </nav>
+</div>
+
+<dialog id="importDlg">
+  <div class="dlg-head"><h3>批量导入节点</h3>
+    <p>每行一个链接，支持全部协议；也可直接粘贴一个订阅链接自动抓取</p></div>
+  <div class="dlg-body">
+    <textarea id="importText" style="min-height:220px" placeholder="vless://…&#10;hysteria2://…&#10;tuic://…&#10;ss://…&#10;或直接粘贴 https://… 订阅地址"></textarea>
+  </div>
+  <div class="dlg-foot">
+    <span class="spacer"></span>
+    <button class="btn ghost" onclick="closeDlg('importDlg')">取消</button>
+    <button class="btn" onclick="doImport()">导入</button>
+  </div>
+</dialog>
+
+<dialog id="previewDlg">
+  <div class="dlg-head"><h3 id="previewTitle">订阅内容预览</h3></div>
+  <div class="dlg-body"><textarea id="previewText" style="min-height:280px" readonly></textarea></div>
+  <div class="dlg-foot">
+    <span class="spacer"></span>
+    <button class="btn" onclick="closeDlg('previewDlg')">关闭</button>
+  </div>
+</dialog>
+
+<dialog id="memberDlg" class="wide">
+  <div class="dlg-head"><h3 id="memberTitle">选择成员节点</h3>
+    <p id="memberHint">左侧按订阅源分组；点击节点加入右侧，右侧顺序即「手动顺序」策略下的输出顺序</p></div>
+  <div class="dlg-body" style="overflow:hidden;display:flex;flex-direction:column;gap:12px">
+    <div class="search" style="max-width:none" id="memberSearchWrap">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+      <input type="text" id="memberSearch" placeholder="搜索节点名称或服务器（只过滤左栏）"
+        oninput="renderMemberPicker()">
+      <button class="clr" onclick="$('memberSearch').value='';renderMemberPicker()" title="清空">×</button>
+    </div>
+    <div class="tfx">
+      <div class="tfcol">
+        <div class="tfhead"><span>可选节点</span><span class="cnt" id="tfAvailCnt"></span>
+          <span class="tail" id="tfAvailSrc"></span></div>
+        <div class="tfbody" id="tfLeft"></div>
+      </div>
+      <div class="tfmid">
+        <button type="button" class="mbtn big" onclick="addVisibleMembers()" title="把左栏当前展示的节点全部加入">→</button>
+        <button type="button" class="mbtn big" onclick="clearMembers()" title="清空已选">←</button>
+      </div>
+      <div class="tfcol">
+        <div class="tfhead"><span>已选节点</span><span class="cnt" id="tfRightCnt"></span>
+          <span class="tail">按此顺序输出</span></div>
+        <div class="tfbody" id="tfRight"></div>
+      </div>
+    </div>
+  </div>
+  <div class="dlg-foot">
+    <span class="dim" id="memberCount"></span>
+    <span class="spacer"></span>
+    <button class="btn ghost sm" onclick="selectAllMembers()">全选</button>
+    <button class="btn ghost sm" onclick="clearMembers()">清空</button>
+    <button class="btn ghost" onclick="closeDlg('memberDlg')">取消</button>
+    <button class="btn" onclick="saveMembers()">保存成员</button>
+  </div>
+</dialog>
+
+
+<dialog id="settingsDlg">
+  <div class="dlg-head"><h3>设置</h3>
+    <p>自动测速与访问保护</p></div>
+  <div class="dlg-body">
+    <div class="field">
+      <label class="switch"><input type="checkbox" id="autoHealth" onchange="saveSettings()">自动测速</label>
+      <span class="suffix" style="margin-left:10px">
+        <span>间隔</span>
+        <input type="number" id="healthInterval" min="1" style="width:70px" onchange="saveSettings()">
+        <span>分钟</span>
+      </span>
+    </div>
+    <div class="field">
+      <label class="switch" title="关闭后不显示登录页，打开页面直接进入（适合仅本机使用）">
+        <input type="checkbox" id="requireLogin" onchange="onRequireLoginChange()">登录密码</label>
+      <button class="btn ghost sm" id="btnChangePw" style="display:none;margin-left:10px" onclick="changePassword()">改密码</button>
+    </div>
+  </div>
+  <div class="dlg-foot">
+    <span class="spacer"></span>
+    <button class="btn ghost" onclick="closeDlg('settingsDlg')">关闭</button>
+  </div>
+</dialog>
+
+<dialog id="groupDlg">
+  <div class="dlg-head"><h3 id="groupDlgTitle">新建分组</h3>
+    <p id="groupDlgDesc">分组决定「哪些节点」以及「以什么顺序」输出；手动挑选与订阅源自动归组可叠加</p></div>
+  <div class="dlg-body">
+    <div class="field">
+      <label>分组名称</label>
+      <input type="text" id="ng_name" placeholder="例如：香港高速">
+    </div>
+    <div class="field">
+      <label>负载均衡策略</label>
+      <select id="ng_strategy"></select>
+    </div>
+    <div class="field">
+      <label>手动挑选节点（可选）</label>
+      <div class="npick">
+        <button type="button" class="btn ghost sm" onclick="openMembers('__new__')">从订阅中挑选节点</button>
+        <span class="dim" id="ng_members_note">不挑则用下方订阅源自动归组；两者可叠加</span>
+      </div>
+    </div>
+    <div class="field">
+      <label>订阅源自动归组（可选）</label>
+      <div class="src-chips" id="ng_sources"></div>
+    </div>
+  </div>
+  <div class="dlg-foot">
+    <label class="switch"><input type="checkbox" id="ng_skip">自动剔除不可用节点</label>
+    <span class="spacer"></span>
+    <button class="btn ghost" onclick="closeDlg('groupDlg')">取消</button>
+    <button class="btn" id="groupSubmitBtn" onclick="addGroup()">创建分组</button>
+  </div>
+</dialog>
+
+<dialog id="subDlg">
+  <div class="dlg-head"><h3>添加订阅源</h3>
+    <p>支持返回 ss:// 列表或 base64 的订阅地址；添加后立即抓取一次节点</p></div>
+  <div class="dlg-body">
+    <div class="field">
+      <label>名称</label>
+      <input type="text" id="s_name" placeholder="例如：机场 A">
+    </div>
+    <div class="field">
+      <label>订阅地址</label>
+      <input type="text" id="s_url" placeholder="https://example.com/api/v1/client/subscribe?token=...">
+    </div>
+    <div class="field">
+      <label>抓取后自动归组（可选）</label>
+      <select id="s_group"></select>
+    </div>
+  </div>
+  <div class="dlg-foot">
+    <span class="spacer"></span>
+    <button class="btn ghost" onclick="closeDlg('subDlg')">取消</button>
+    <button class="btn" onclick="addSub()">添加并抓取</button>
+  </div>
+</dialog>
+
+<dialog id="ruleDlg">
+  <div class="dlg-head"><h3>新增规则</h3>
+    <p>自上而下匹配，顺序即优先级；新规则会插到 FINAL 兜底之前</p></div>
+  <div class="dlg-body">
+    <div class="field">
+      <label>匹配类型</label>
+      <select id="rd_type" onchange="onRuleDlgType()"></select>
+    </div>
+    <div class="field" id="rd_valueField">
+      <label>值</label>
+      <input type="text" id="rd_value" placeholder="如 example.com / 10.0.0.0/8">
+    </div>
+    <div class="field" id="rd_rawField" style="display:none">
+      <label>原文行（不参与表单解析，随配置原样输出）</label>
+      <input type="text" id="rd_raw" placeholder="如 RULE-SET,foo,SG-Proxy">
+    </div>
+    <div class="field" id="rd_actionField">
+      <label>动作</label>
+      <select id="rd_action"></select>
+    </div>
+    <label class="switch" style="margin-top:14px" id="rd_noresolveField">
+      <input type="checkbox" id="rd_noresolve">no-resolve（IP-CIDR / GEOIP 类规则常用，避免发 DNS 查询）</label>
+  </div>
+  <div class="dlg-foot">
+    <span class="spacer"></span>
+    <button class="btn ghost" onclick="closeDlg('ruleDlg')">取消</button>
+    <button class="btn" onclick="saveRuleDlg()">添加规则</button>
+  </div>
+</dialog>
+
+<dialog id="nodeDlg" class="wide">
+  <div class="dlg-head"><h3 id="nodeDlgTitle">添加节点</h3>
+    <p>默认手工填写节点参数；也可以切换到链接导入，直接粘贴分享链接或订阅地址</p></div>
+  <div class="dlg-body">
+    <div class="seg" id="nmSeg" style="margin-bottom:16px" role="tablist">
+      <button type="button" id="nmManual" class="on" onclick="switchNodeMode('manual')">手工填写</button>
+      <button type="button" id="nmUri" onclick="switchNodeMode('uri')">链接粘贴导入</button>
+    </div>
+
+    <div id="nodeManualPane">
+            <summary>或手工填写字段（按所选协议自动展开对应参数）</summary>
+            <div class="grid">
+              <div class="field"><label>协议</label><select id="f_type" onchange="onTypeChange()"></select></div>
+              <div class="field"><label>名称</label><input type="text" id="f_name" placeholder="HK-01"></div>
+              <div class="field"><label>服务器</label><input type="text" id="f_server" placeholder="1.2.3.4 或 example.com"></div>
+              <div class="field"><label>端口</label><input type="number" id="f_port" placeholder="443"></div>
+
+              <div class="field pf" data-for="ss,ssr,trojan,hysteria2,tuic,anytls,socks5,socks5-tls,http,http2,http3,snell,ssh,brook,juicity,gost">
+                <label>密码 / PSK</label><input type="text" id="f_password" placeholder="连接密码"></div>
+              <div class="field pf" data-for="ss,ssr"><label>加密方法</label><select id="f_method"></select></div>
+
+              <div class="field pf" data-for="ssr"><label>协议</label><input type="text" id="f_protocol" placeholder="origin"></div>
+              <div class="field pf" data-for="ssr"><label>协议参数</label><input type="text" id="f_protocol_param"></div>
+              <div class="field pf" data-for="ssr"><label>混淆方式</label><input type="text" id="f_obfs" placeholder="plain"></div>
+              <div class="field pf" data-for="ssr"><label>混淆参数</label><input type="text" id="f_obfs_param"></div>
+
+              <div class="field pf" data-for="vmess,vless,tuic"><label>UUID</label><input type="text" id="f_uuid"></div>
+              <div class="field pf" data-for="vmess"><label>alterId</label><input type="number" id="f_aid" placeholder="0"></div>
+              <div class="field pf" data-for="vmess"><label>加密</label><select id="f_cipher"></select></div>
+              <div class="field pf" data-for="vmess,vless,trojan"><label>传输方式</label>
+                <select id="f_network">
+                  <option value="tcp">tcp</option><option value="ws">ws</option>
+                  <option value="grpc">grpc</option><option value="h2">h2</option>
+                </select></div>
+              <div class="field pf" data-for="vmess,vless,trojan"><label>ws 路径</label><input type="text" id="f_ws_path" placeholder="/path"></div>
+              <div class="field pf" data-for="vmess,vless,trojan"><label>ws Host</label><input type="text" id="f_ws_host"></div>
+              <div class="field pf" data-for="vmess,vless"><label>gRPC 服务名</label><input type="text" id="f_grpc_service"></div>
+              <div class="field pf" data-for="vless"><label>flow</label><input type="text" id="f_flow" placeholder="xtls-rprx-vision"></div>
+
+              <div class="field pf" data-for="vmess,vless,trojan,gost"><label>TLS</label>
+                <label class="switch" style="height:36px"><input type="checkbox" id="f_tls">启用 TLS</label></div>
+              <div class="field pf" data-for="vless"><label>Reality</label>
+                <label class="switch" style="height:36px"><input type="checkbox" id="f_reality">启用 Reality</label></div>
+              <div class="field pf" data-for="vless"><label>Reality 公钥 pbk</label><input type="text" id="f_pbk"></div>
+              <div class="field pf" data-for="vless"><label>Reality shortId</label><input type="text" id="f_sid"></div>
+              <div class="field pf" data-for="vmess,vless,trojan,hysteria,hysteria2,tuic,anytls,socks5-tls,http2,http3,juicity"><label>SNI</label><input type="text" id="f_sni"></div>
+              <div class="field pf" data-for="vmess,vless,trojan,hysteria,hysteria2,tuic,anytls"><label>ALPN</label><input type="text" id="f_alpn"></div>
+              <div class="field pf" data-for="vmess,vless"><label>指纹 fp</label><input type="text" id="f_fp" placeholder="chrome"></div>
+
+              <div class="field pf" data-for="hysteria"><label>认证 auth</label><input type="text" id="f_auth"></div>
+              <div class="field pf" data-for="hysteria"><label>上行 Mbps</label><input type="number" id="f_up" placeholder="100"></div>
+              <div class="field pf" data-for="hysteria"><label>下行 Mbps</label><input type="number" id="f_down" placeholder="100"></div>
+              <div class="field pf" data-for="hysteria2"><label>混淆 obfs</label><input type="text" id="f_h2_obfs" placeholder="salamander"></div>
+              <div class="field pf" data-for="hysteria2"><label>混淆密码</label><input type="text" id="f_h2_obfs_pw"></div>
+              <div class="field pf" data-for="hysteria2"><label>端口跳跃</label><input type="text" id="f_ports" placeholder="20000-30000"></div>
+
+              <div class="field pf" data-for="tuic"><label>token</label><input type="text" id="f_token"></div>
+              <div class="field pf" data-for="tuic"><label>拥塞控制</label><input type="text" id="f_congestion" placeholder="bbr"></div>
+              <div class="field pf" data-for="tuic"><label>UDP 模式</label><input type="text" id="f_udp_mode" placeholder="native"></div>
+
+              <div class="field pf" data-for="socks5,http,ssh,gost,socks5-tls,http2,http3"><label>用户名</label><input type="text" id="f_username"></div>
+              <div class="field pf" data-for="http"><label>HTTPS</label>
+                <label class="switch" style="height:36px"><input type="checkbox" id="f_http_tls">启用 TLS</label></div>
+
+              <div class="field pf" data-for="vmess,vless,trojan,hysteria,hysteria2,tuic,anytls,socks5-tls,http2,http3,juicity"><label>跳过证书校验</label>
+                <label class="switch" style="height:36px"><input type="checkbox" id="f_insecure">skip-cert-verify</label></div>
+
+              <div class="field pf" data-for="ss"><label>混淆插件</label><input type="text" id="f_plugin" placeholder="obfs-local"></div>
+              <div class="field pf" data-for="ss"><label>插件参数</label><input type="text" id="f_plugin_opts" placeholder="obfs=http;obfs-host=www.bing.com"></div>
+
+              <div class="field pf" data-for="snell"><label>Snell 版本</label>
+                <select id="f_snell_ver">
+                  <option value="4">v4</option><option value="5">v5</option><option value="3">v3</option>
+                </select></div>
+
+              <div class="field pf" data-for="ssh"><label>私钥 private-key</label><input type="text" id="f_privkey" placeholder="-----BEGIN OPENSSH PRIVATE KEY----- 或文件路径"></div>
+              <div class="field pf" data-for="ssh"><label>私钥口令</label><input type="text" id="f_key_pass"></div>
+
+              <div class="field pf" data-for="wireguard"><label>本端私钥</label><input type="text" id="f_wg_privkey"></div>
+              <div class="field pf" data-for="wireguard"><label>对端公钥</label><input type="text" id="f_wg_pubkey"></div>
+              <div class="field pf" data-for="wireguard"><label>预共享密钥（可选）</label><input type="text" id="f_wg_psk"></div>
+              <div class="field pf" data-for="wireguard"><label>本端地址</label><input type="text" id="f_wg_addr" placeholder="172.16.0.2/32"></div>
+              <div class="field pf" data-for="wireguard"><label>allowed-ips</label><input type="text" id="f_wg_allowed" placeholder="0.0.0.0/0"></div>
+              <div class="field pf" data-for="wireguard"><label>DNS（可选）</label><input type="text" id="f_wg_dns" placeholder="1.1.1.1"></div>
+              <div class="field pf" data-for="wireguard"><label>MTU（可选）</label><input type="text" id="f_wg_mtu" placeholder="1420"></div>
+              <div class="field pf" data-for="wireguard"><label>keepalive 秒（可选）</label><input type="text" id="f_wg_keepalive" placeholder="25"></div>
+    </div>
+
+    <div id="nodeUriPane" style="display:none">
+      <div class="field">
+        <label>粘贴节点链接（每行一条，也可粘贴订阅 URL，自动抓取解析）</label>
+        <textarea id="f_uris" rows="7" style="font-family:ui-monospace,Menlo,monospace;font-size:12.5px"
+          placeholder="vless://…&#10;vmess://… / trojan://… / hysteria2://… / tuic://… / ss://… / ssr://… / anytls://…&#10;https://example.com/sub"></textarea>
+      </div>
+      <p class="dim" style="font-size:12.5px">支持 ss / ssr / vmess / vless / trojan / hysteria / hysteria2 / tuic / anytls / socks5 / http；解析失败或不受支持的行会被跳过，完成后提示成功与失败数量。手工导入的节点不会被订阅刷新覆盖</p>
+    </div>
+
+  </div>
+  <div class="dlg-foot">
+    <span class="dim" id="typeHint"></span>
+    <span class="spacer"></span>
+    <button class="btn ghost" onclick="closeDlg('nodeDlg')">取消</button>
+    <button class="btn" id="nodeSubmitBtn" onclick="addNode()">添加节点</button>
+  </div>
+</dialog>
+
+<div id="toast"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+const state = {nodes: [], subs: [], groups: [], strategies: [], settings: {},
+  publish: {}, editingGroup: null, subNames: {}, tab: 'groups',
+  types: [], typeLabels: {}, nodeFilter: '',
+  collapsedGroups: null, memberCollapsed: null,
+  authEnabled: true, hasPassword: false,
+  ruleRows: [], ruleMode2: 'form', ruleTypes: {}, ruleActions: [],
+  rulesSaved: '', memberMode: 'edit', newMembers: []};
+
+/* 折叠状态（分组卡片 / 节点池来源分节 / 穿梭框来源分组）持久化到 localStorage */
+function collapsedSet(which) {
+  const key = which === 'groups' ? 'ss_gcollapsed'
+    : which === 'sources' ? 'ss_scollapsed' : 'ss_mcollapsed';
+  const field = which === 'groups' ? 'collapsedGroups'
+    : which === 'sources' ? 'collapsedSources' : 'memberCollapsed';
+  if (!state[field]) {
+    const raw = localStorage.getItem(key);
+    if (raw === null && which === 'groups') {
+      state[field] = new Set(state.groups.map(g => g.id));   // 首次访问：分组卡片默认全部折叠
+    } else {
+      let arr = [];
+      try { arr = JSON.parse(raw || '[]'); } catch (e) { arr = []; }
+      state[field] = new Set(arr);   // 来源分节首次访问默认全部展开
+    }
+  }
+  return state[field];
+}
+function persistCollapsed(which) {
+  const key = which === 'groups' ? 'ss_gcollapsed'
+    : which === 'sources' ? 'ss_scollapsed' : 'ss_mcollapsed';
+  const s = collapsedSet(which);
+  try { localStorage.setItem(key, JSON.stringify([...s])); } catch (e) {}
+}
+
+const TAB_META = {
+  groups:  ['节点与分组', '左边是分组卡片（可折叠展开看组内节点），下面是节点池；节点与连通性一屏看完'],
+  subs:    ['订阅聚合', '添加多个远程订阅源，一键抓取并合并节点，刷新时按来源替换'],
+  rules:   ['规则', 'Surge 风格分流规则，随配置文件一起下发给 Shadowrocket'],
+  publish: ['发布订阅', '一键导入 Shadowrocket：可导入节点订阅，也可导入含分组与规则的完整配置'],
+};
+const HEAD_ACTIONS = {
+  groups: [{label: '测速', fn: 'runSpeedTest()',
+            title: '用内置 mihomo 内核对每个节点做真实协议握手 + 代理请求，'
+                 + '结论与客户端一致；内核不支持的协议自动降级为端口探测。80 个节点约需 40 秒'},
+           {label: '新建分组', fn: 'openGroupDlg()'},
+           {label: '全部展开', fn: 'toggleAllGroupCards()', id: 'btnCollapseAll', ghost: true},
+           {label: '刷新订阅', fn: 'refreshAllSubs()', ghost: true}],
+  subs:  [{label: '添加订阅源', fn: 'openSubDlg()'},
+          {label: '刷新全部订阅', fn: 'refreshAllSubs()', ghost: true}],
+  rules: [{label: '新增规则', fn: 'openRuleDlg()'}],
+};
+
+const SVG = {
+  copy:  '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg>',
+  check: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>',
+  trash: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V5h6v2"/><path d="M6 7l1 13h10l1-13"/></svg>',
+  refresh:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg>',
+  users: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M17 11a3 3 0 1 0 0-6"/><path d="M18 20a6.4 6.4 0 0 0-2-4.6"/></svg>',
+  order:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h10M4 12h7M4 17h10"/><path d="M18 9l3 3-3 3"/></svg>',
+  eye:   '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="2.6"/></svg>',
+  link:  '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7 0l2-2a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-2 2a5 5 0 0 0 7 7l1-1"/></svg>',
+  plus:  '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
+  up:    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="M6 11l6-6 6 6"/></svg>',
+  down:  '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M6 13l6 6 6-6"/></svg>',
+  test:  '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4.5 13h6L11 22l8.5-11h-6L13 2z"/></svg>',
+  edit:  '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>',
+};
+const iconBtn = (icon, onclick, title, cls = '') =>
+  `<button class="btn ghost sm icon ${cls}" onclick="${onclick}" title="${title}" aria-label="${title}">${SVG[icon]}</button>`;
+
+/* ---------------- utils ---------------- */
+function toast(msg, ok = true) {
+  const el = document.createElement('div');
+  el.className = 'toast' + (ok ? '' : ' err');
+  el.innerHTML = (ok ? SVG.check : '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4.5M12 16h.01"/></svg>') +
+    `<span>${esc(msg)}</span>`;
+  const box = $('toast');
+  box.appendChild(el);
+  raiseToast();
+  setTimeout(() => { el.style.transition = 'opacity .3s,transform .3s';
+    el.style.opacity = '0'; el.style.transform = 'translateY(6px)'; }, 2400);
+  setTimeout(() => el.remove(), 2800);
+}
+/* 让 toast 处于顶层之上（顶部元素按进入顶层的顺序堆叠，重新 promote 一次即可盖过弹框） */
+function raiseToast() {
+  const box = $('toast');
+  if (typeof box.showPopover !== 'function') return;
+  try { box.hidePopover(); } catch (e) {}
+  try { box.showPopover(); } catch (e) {}
+}
+function closeDlg(id) { $(id).close(); }
+async function api(path, opts = {}) {
+  const res = await fetch(path, {
+    headers: {'Content-Type': 'application/json'},
+    ...opts,
+    body: opts.body ? JSON.stringify(opts.body) : undefined
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    if (data.need_setup || data.need_login) throw {auth: true, ...data};
+    throw data;
+  }
+  return data;
+}
+const esc = s => { const d = document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML; };
+const shorten = (s, n) => s && s.length > n ? s.slice(0, n) + '…' : s;
+function copyText(t) {
+  if (!t) return toast('暂无内容', false);
+  navigator.clipboard.writeText(t).then(() => toast('已复制到剪贴板'))
+    .catch(() => { const i = document.createElement('input'); i.value = t;
+      document.body.appendChild(i); i.select(); document.execCommand('copy'); i.remove();
+      toast('已复制'); });
+}
+function copyBtn(btn, text) {
+  if (!text) return toast('暂无内容', false);
+  copyText(text);
+  if (!btn || btn.dataset.done) return;
+  const html = btn.innerHTML;
+  btn.dataset.done = '1';
+  btn.innerHTML = SVG.check + '已复制';
+  setTimeout(() => { btn.innerHTML = html; delete btn.dataset.done; }, 1500);
+}
+/* 连通性展示跟 Shadowrocket 一致：能通就是延迟数字，不通就是「超时 / 失败」，
+   没测过是「—」。具体原因收进 tooltip，不占主视野。 */
+const PROBE_TEXT = {
+  ok: '端口可达', refused: '失败', timeout: '超时',
+  dns: '失败', udp: '超时', error: '超时',
+  deep: '', deep_fail: '超时',
+};
+function probeInfo(n) {
+  if (n.alive === true) {
+    if (n.probe === 'ok') return {text: PROBE_TEXT.ok, cls: 'warn'};
+    const ms = n.latency_ms ?? 0;
+    return {text: `${ms} ms`, cls: ms < 200 ? 'ok' : (ms < 600 ? 'warn' : 'bad')};
+  }
+  if (n.alive === false) {
+    const t = PROBE_TEXT[n.probe] || '失败';
+    return {text: t, cls: t === '失败' ? 'bad' : 'mut'};
+  }
+  if (n.probe) return {text: '超时', cls: 'mut'};
+  return {text: '—', cls: 'line'};
+}
+const PROBE_TIP = {
+  bad: '不可用：端口未开 / 域名解析失败 / 内核真实握手与代理请求失败',
+  mut: '超时：连接无应答，可能是本机网络阻断，也可能节点已失效',
+  warn: '可用，但只验证了端口可达：该协议内核不支持端到端验证',
+  line: '尚未测速',
+  portOnly: '端口可达：该协议内核不支持端到端验证，实际可用性建议在客户端确认',
+  deep: '可用：mihomo 内核真实协议握手并走代理请求成功，延迟为真实值',
+};
+/* 分组健康摘要：Surge 式纯文本，无色块徽章 */
+function groupHealthPill(g) {
+  if (!g.tested_count) return '<span class="ghealth">未测速</span>';
+  const parts = [`<span class="ht-ok">${g.alive_count} 可用</span>`];
+  if (g.port_only_count) parts.push(`<span class="ht-warn">${g.port_only_count} 仅端口</span>`);
+  if (g.dead_count) parts.push(`<span class="ht-bad">${g.dead_count} 失败</span>`);
+  if (g.unknown_count) parts.push(`${g.unknown_count} 超时`);
+  return `<span class="ghealth">${parts.join('<i>·</i>')}</span>`;
+}
+const srcName = n => n.source === 'custom' ? '自定义' : (state.subNames[n.source] || n.source_name || '订阅');
+const srcPill = n => n.source === 'custom'
+  ? '<span class="meta-tag acc">自定义</span>'
+  : `<span class="meta-tag">${esc(srcName(n))}</span>`;
+
+/* ---------------- auth ---------------- */
+async function checkStatus() {
+  try {
+    const s = await api('/api/status');
+    state.authEnabled = s.auth_enabled !== false;
+    if (!state.authEnabled) return enterMain();      // 已关闭登录：直接进主界面
+    if (s.need_setup) return showAuth('初始化', '首次使用，请设置管理密码');
+    if (!s.logged_in) return showAuth('登录', '输入管理密码进入配置中心');
+    enterMain();
+  } catch (e) {
+    // 区分「需要登录」（后端明确拒绝）与「后端根本连不上」——后者不该弹密码框
+    if (e && e.auth) return showAuth('登录', '输入管理密码进入配置中心');
+    showAuthOffline();
+  }
+}
+function showAuth(title, desc) {
+  $('authView').style.display = 'flex';
+  $('mainView').style.display = 'none';
+  $('authTitle').textContent = title;
+  $('authDesc').textContent = desc;
+  $('authPassword').parentElement.style.display = '';
+  $('authSubmitBtn').style.display = '';
+  $('authHint').style.display = 'none';
+  $('authRetry').style.display = 'none';
+  setTimeout(() => $('authPassword').focus(), 30);
+}
+/* 后端不可达：明确告知是连接问题，而不是让用户反复试密码 */
+function showAuthOffline() {
+  const origin = location.origin && location.origin !== 'null' ? location.origin : '(本地文件)';
+  $('authView').style.display = 'flex';
+  $('mainView').style.display = 'none';
+  $('authTitle').textContent = '连不上配置中心';
+  $('authDesc').textContent = '页面没有连上后端服务，此时输入任何密码都不会成功。';
+  $('authPassword').parentElement.style.display = 'none';
+  $('authSubmitBtn').style.display = 'none';
+  const local = origin.indexOf(':5017') > -1;
+  $('authHint').innerHTML =
+    `当前页面来源：<b>${esc(origin)}</b>${local ? '' :
+      '（不是配置中心的服务地址，可能是静态预览或本地文件直接打开）'}<br>` +
+    '请用服务地址打开：<b>http://127.0.0.1:5017/</b>（局域网用本机 IP:5017）<br>' +
+    '若服务未启动：在项目目录执行 <b>./start.sh</b>（局域网加 <b>lan</b> 参数）';
+  $('authHint').style.display = '';
+  $('authRetry').style.display = '';
+}
+async function authSubmit() {
+  const password = $('authPassword').value;
+  if (!password) return toast('请输入密码', false);
+  try {
+    const isSetup = $('authTitle').textContent === '初始化';
+    await api(isSetup ? '/api/setup' : '/api/login', {method: 'POST', body: {password}});
+    enterMain();
+  } catch (e) {
+    if (e && e.auth === undefined && !e.error) return showAuthOffline();   // 网络层失败
+    toast(e.error || '密码错误', false);
+  }
+}
+async function logout() { await api('/api/logout', {method: 'POST'}); location.reload(); }
+function enterMain() {
+  $('authView').style.display = 'none';
+  $('mainView').style.display = 'flex';
+  $('btnLogout').style.display = state.authEnabled ? '' : 'none';   // 关闭登录时不显示退出
+  loadAll();
+}
+
+/* ---------------- tabs ---------------- */
+function switchTab(name) {
+  state.tab = name;
+  document.querySelectorAll('.nav button, .tabbar button').forEach(b =>
+    b.classList.toggle('active', b.dataset.tab === name));
+  ['groups','subs','rules','publish'].forEach(t =>
+    $('tab-' + t).style.display = t === name ? '' : 'none');
+  $('pageTitle').textContent = TAB_META[name][0];
+  $('pageDesc').textContent = TAB_META[name][1];
+  $('headActions').innerHTML = (HEAD_ACTIONS[name] || []).map(a =>
+    `<button class="btn ${a.ghost ? 'ghost' : ''}"${a.id ? ` id="${a.id}"` : ''}${a.title ? ` title="${esc(a.title)}"` : ''} onclick="${a.fn}">${a.label}</button>`).join('');
+  if (name === 'publish') loadPublish();
+  if (name === 'groups') loadGroups();
+  // 分组有变动时，刷新规则表单「动作」下拉里的策略组选项（不含未保存的表单改动就跳过）
+  if (name === 'rules') {
+    const sig = (state.groups || []).map(g => g.name).join('|');
+    if (state.ruleGroupsSig !== undefined && state.ruleGroupsSig !== sig) renderRuleRows();
+  }
+}
+
+/* ---------------- load ---------------- */
+const VMESS_CIPHERS = ['auto', 'aes-128-gcm', 'aes-256-gcm', 'chacha20-poly1305', 'none'];
+async function loadAll() {
+  const meta = await api('/api/methods');
+  state.strategies = meta.strategies;
+  state.types = meta.types || [];
+  state.typeLabels = meta.type_labels || {};
+  $('f_method').innerHTML = meta.methods.map(m => `<option>${m}</option>`).join('');
+  $('f_cipher').innerHTML = VMESS_CIPHERS.map(m => `<option>${m}</option>`).join('');
+  $('f_type').innerHTML = state.types.map(t =>
+    `<option value="${t}">${state.typeLabels[t] || t}</option>`).join('');
+  $('ng_strategy').innerHTML = meta.strategies.map(s =>
+    `<option value="${s.key}">${s.name} — ${s.desc}</option>`).join('');
+  onTypeChange();
+  await loadSubs();
+  await loadGroups();     // 先拿到分组，规则表单的「动作」下拉才能列出策略组
+  await Promise.all([loadNodes(), loadRules(), loadSettings(), loadPublish()]);
+  renderGroupSelectors();
+  switchTab('groups');
+}
+
+function updateKpis() {
+  const nodes = state.nodes;
+  $('navGroups').textContent = state.groups.length;
+  $('navSubs').textContent = state.subs.length;
+  $('sideSummary').innerHTML = `<b>${nodes.length}</b>&nbsp;节点 ·&nbsp;` +
+    `<b>${state.groups.length}</b>&nbsp;分组`;
+}
+
+/* ---------------- nodes ---------------- */
+async function loadNodes() {
+  const {nodes} = await api('/api/nodes');
+  state.nodes = nodes;
+  renderNodeTable();
+  updateKpis();
+}
+function onNodeSearch() {
+  const v = $('nodeSearch').value;
+  $('nodeSearchWrap').classList.toggle('has', !!v);
+  renderNodeTable();
+}
+function clearNodeSearch() { $('nodeSearch').value = ''; onNodeSearch(); }
+function nodeTypeLabel(t) { return state.typeLabels[t] || t || 'ss'; }
+function protocolTag(n) {
+  const t = n.type || 'ss';
+  if (t === 'ss' || t === 'ssr') return n.method ? `<code class="chip">${esc(n.method)}</code>` : '';
+  const bits = [];
+  if (n.network && n.network !== 'tcp') bits.push(n.network);
+  if (n.reality) bits.push('reality');
+  else if (n.tls) bits.push('tls');
+  return bits.length ? `<code class="chip">${esc(bits.join(' · '))}</code>` : '';
+}
+function renderNodeFilters() {
+  const counts = {};
+  state.nodes.forEach(n => { const t = n.type || 'ss'; counts[t] = (counts[t] || 0) + 1; });
+  const types = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
+  $('nodeFilters').innerHTML = types.length > 1
+    ? `<button class="src-chip ${state.nodeFilter ? '' : 'on'}"
+         onclick="state.nodeFilter='';renderNodeTable()">全部 ${state.nodes.length}</button>` +
+      types.map(t => `<button class="src-chip ${state.nodeFilter === t ? 'on' : ''}"
+         onclick="setNodeFilter('${t}')">${esc(nodeTypeLabel(t))} ${counts[t]}</button>`).join('')
+    : '';
+}
+function setNodeFilter(t) {
+  state.nodeFilter = state.nodeFilter === t ? '' : t;
+  renderNodeTable();
+}
+const nodeUri = id => {
+  const n = state.nodes.find(x => x.id === id);
+  return n ? (n.uri || '') : '';
+};
+function renderNodeTable() {
+  const kw = ($('nodeSearch').value || '').trim().toLowerCase();
+  let list = state.nodeFilter
+    ? state.nodes.filter(n => (n.type || 'ss') === state.nodeFilter) : state.nodes;
+  if (kw) list = list.filter(n => (n.name || '').toLowerCase().includes(kw)
+    || (n.server || '').toLowerCase().includes(kw));
+  $('nodeSummary').textContent = (kw || state.nodeFilter)
+    ? `匹配 ${list.length} / 共 ${state.nodes.length} 个节点`
+    : `共 ${state.nodes.length} 个节点`;
+  /* 按订阅来源分节，保持节点池原有出现顺序（自定义节点在最后） */
+  const bySrc = new Map();
+  list.forEach(n => {
+    const k = n.source || 'custom';
+    if (!bySrc.has(k)) bySrc.set(k, []);
+    bySrc.get(k).push(n);
+  });
+  const collapsed = collapsedSet('sources');
+  $('nodeGrid').innerHTML = [...bySrc.entries()].map(([src, nodes]) => {
+    const isCol = collapsed.has(src);
+    const label = srcName({source: src, source_name: nodes[0].source_name});
+    const alive = nodes.filter(n => n.alive === true).length;
+    const dead = nodes.filter(n => n.alive === false).length;
+    const unknown = nodes.length - alive - dead;
+    const health = (alive + dead)
+      ? [`<span class="ht-ok">${alive} 可用</span>`,
+         dead ? `<span class="ht-bad">${dead} 失败</span>` : '',
+         unknown ? `${unknown} 超时` : ''].filter(Boolean).join('<i>·</i>')
+      : '未测速';
+    const cards = nodes.map(n => {
+      const p = probeInfo(n);
+      const tip = (n.probe === 'deep' || n.probe === 'ok') ? PROBE_TIP[n.probe === 'ok' ? 'portOnly' : 'deep']
+        : PROBE_TIP[p.cls] || '';
+      return `<div class="ncard" title="${esc(n.name + ' · ' + n.server + ':' + n.port)}${tip ? ' — ' + esc(tip) : ''}">
+        <div class="ncard-t"><span class="nname">${esc(n.name)}</span>
+          <span class="lat ${p.cls}">${esc(p.text)}</span></div>
+        <div class="ncard-s"><span class="dim">${esc(nodeTypeLabel(n.type))}</span>
+          <span class="nops">
+            ${iconBtn('test', `testNode('${n.id}')`, '单独测速')}
+            ${iconBtn('edit', `openEditNode('${n.id}')`, '修改节点')}
+            ${n.source === 'custom' ? iconBtn('trash', `delNode('${n.id}')`, '删除节点') : ''}
+          </span></div>
+      </div>`;
+    }).join('');
+    return `<div class="nsec ${isCol ? 'col' : ''}">
+      <div class="nsec-h" onclick="toggleSourceSec('${esc(src)}')" title="${isCol ? '展开该订阅的节点' : '收起'}">
+        <span class="nchev">${CHEV}</span>
+        <span class="nsname">${esc(label)}</span>
+        <span class="nscnt"><span class="ghealth">${nodes.length} 节点 · ${health}</span></span>
+      </div>
+      ${isCol ? '' : `<div class="ngrid">${cards}</div>`}
+    </div>`;
+  }).join('');
+  renderNodeFilters();
+  $('nodeEmpty').style.display = list.length ? 'none' : 'block';
+}
+/* 折叠 / 展开某个订阅来源的节点分节 */
+function toggleSourceSec(src) {
+  const s = collapsedSet('sources');
+  if (s.has(src)) s.delete(src); else s.add(src);
+  persistCollapsed('sources');
+  renderNodeTable();
+}
+/* 按所选协议显示/隐藏对应字段 */
+function onTypeChange() {
+  const t = $('f_type').value || 'ss';
+  document.querySelectorAll('.pf').forEach(el => {
+    const allow = (el.dataset.for || '').split(',');
+    el.style.display = allow.includes(t) ? '' : 'none';
+  });
+  const HINTS = {
+    ss: `${nodeTypeLabel(t)}：服务器 / 端口 / 密码 / 加密方法 为必填`,
+    ssr: `${nodeTypeLabel(t)}：服务器 / 端口 / 密码 / 加密方法 为必填`,
+    wireguard: 'WireGuard：服务器 / 端口 为对端 endpoint，本端私钥与对端公钥为必填',
+    ssh: 'SSH：服务器 / 端口 / 用户名 为必填，密码或私钥二选一',
+    http2: 'HTTP2 (NaiveProxy)：服务器 / 端口 / 用户名 / 密码 为必填',
+    http3: 'HTTP3 (NaiveProxy)：服务器 / 端口 / 用户名 / 密码 为必填',
+    snell: 'Snell：服务器 / 端口 / PSK 密码 为必填',
+  };
+  $('typeHint').textContent = HINTS[t]
+    || `${nodeTypeLabel(t)}：服务器 / 端口 为必填，其余按需填写`;
+}
+/* 添加节点弹框模式：manual（默认，手工表单）/ uri（链接粘贴导入） */
+let nodeMode = 'manual';
+function switchNodeMode(m) {
+  nodeMode = m;
+  $('nmManual').classList.toggle('on', m === 'manual');
+  $('nmUri').classList.toggle('on', m === 'uri');
+  $('nodeManualPane').style.display = m === 'manual' ? '' : 'none';
+  $('nodeUriPane').style.display = m === 'uri' ? '' : 'none';
+  $('nodeSubmitBtn').textContent = m === 'manual' ? '添加节点' : '解析并添加';
+  if (m === 'manual') onTypeChange();
+  else $('typeHint').textContent = '支持逐行粘贴分享链接，或直接粘贴订阅 URL 抓取';
+  setTimeout(() => (m === 'manual' ? $('f_type') : $('f_uris')).focus(), 30);
+}
+async function addNodesByUriText() {
+  const text = $('f_uris').value.trim();
+  if (!text) return toast('请先粘贴节点链接或订阅 URL', false);
+  try {
+    const r = await api('/api/nodes/import', {method: 'POST', body: {text}});
+    if (r.added) {
+      $('f_uris').value = '';
+      toast(`导入完成：成功 ${r.added} 个${r.failed ? `，失败 ${r.failed} 个` : ''}`, r.failed === 0);
+      closeDlg('nodeDlg');
+    } else {
+      toast('没有解析出可用节点，请检查链接格式', false);
+    }
+    loadNodes(); loadGroups(); loadPublish();
+  } catch (e) { toast(e.error || '导入失败', false); }
+}
+function readNodeForm() {
+  const t = $('f_type').value || 'ss';
+  const body = {
+    type: t, name: $('f_name').value, server: $('f_server').value, port: $('f_port').value,
+    password: $('f_password').value, method: t === 'vmess' ? $('f_cipher').value : $('f_method').value,
+    uuid: $('f_uuid').value, aid: $('f_aid').value,
+    protocol: $('f_protocol').value, protocol_param: $('f_protocol_param').value,
+    obfs: t === 'hysteria2' ? $('f_h2_obfs').value : $('f_obfs').value,
+    obfs_param: $('f_obfs_param').value, obfs_pw: $('f_h2_obfs_pw').value,
+    ports: $('f_ports').value,
+    network: $('f_network').value, ws_path: $('f_ws_path').value, ws_host: $('f_ws_host').value,
+    grpc_service: $('f_grpc_service').value, flow: $('f_flow').value,
+    tls: t === 'http' ? $('f_http_tls').checked : $('f_tls').checked,
+    reality: $('f_reality').checked, pbk: $('f_pbk').value, sid: $('f_sid').value,
+    sni: $('f_sni').value, alpn: $('f_alpn').value, fp: $('f_fp').value,
+    auth: $('f_auth').value, up: $('f_up').value, down: $('f_down').value,
+    token: $('f_token').value, congestion: $('f_congestion').value,
+    udp_mode: $('f_udp_mode').value, username: $('f_username').value,
+    insecure: $('f_insecure').checked,
+    plugin: $('f_plugin').value, plugin_opts: $('f_plugin_opts').value,
+    snell_version: $('f_snell_ver').value,
+    privkey: $('f_privkey').value, key_pass: $('f_key_pass').value,
+    wg_privkey: $('f_wg_privkey').value, wg_pubkey: $('f_wg_pubkey').value,
+    wg_psk: $('f_wg_psk').value, wg_addr: $('f_wg_addr').value,
+    wg_allowed: $('f_wg_allowed').value, wg_dns: $('f_wg_dns').value,
+    wg_mtu: $('f_wg_mtu').value, wg_keepalive: $('f_wg_keepalive').value,
+  };
+  Object.keys(body).forEach(k => { if (body[k] === '' || body[k] === undefined) delete body[k]; });
+  return body;
+}
+function clearNodeForm() {
+  ['f_name','f_server','f_port','f_password','f_uuid','f_aid','f_ws_path','f_ws_host',
+   'f_grpc_service','f_flow','f_pbk','f_sid','f_sni','f_alpn','f_fp','f_auth','f_up','f_down',
+   'f_h2_obfs','f_h2_obfs_pw','f_ports','f_token','f_congestion','f_udp_mode','f_username',
+   'f_plugin','f_plugin_opts','f_protocol','f_protocol_param','f_obfs','f_obfs_param',
+   'f_privkey','f_key_pass','f_wg_privkey','f_wg_pubkey','f_wg_psk','f_wg_addr',
+   'f_wg_allowed','f_wg_dns','f_wg_mtu','f_wg_keepalive']
+    .forEach(i => { const el = $(i); if (el) el.value = ''; });
+  const sv = $('f_snell_ver'); if (sv) sv.value = '4';
+}
+async function addNode() {
+  if (nodeMode === 'uri') return addNodesByUriText();
+  const body = readNodeForm();
+  if (!body.server || !body.port) return toast('服务器与端口为必填项', false);
+  try {
+    if (state.editingNode) {
+      await api('/api/nodes/' + state.editingNode, {method: 'PUT', body});
+      closeDlg('nodeDlg');
+      toast('节点已修改，测速结果已重置');
+    } else {
+      await api('/api/nodes', {method: 'POST', body});
+      closeDlg('nodeDlg');
+      toast('节点已添加');
+      clearNodeForm();
+    }
+    loadNodes(); loadGroups(); loadPublish();
+  } catch (e) { toast(e.error || '保存失败', false); }
+}
+/* 按钮触发弹框：添加节点（默认手工表单，可切换链接粘贴导入） */
+function openNodeDlg() {
+  state.editingNode = null;
+  $('nmSeg').style.display = '';
+  $('nodeDlgTitle').textContent = '添加节点';
+  switchNodeMode('manual');
+  clearNodeForm();
+  $('f_uris').value = '';
+  onTypeChange();
+  $('nodeDlg').showModal();
+  setTimeout(() => $('f_name').focus(), 30);
+}
+/* 修改节点：复用添加弹框，按节点回填表单 */
+function fillNodeForm(n) {
+  const t = n.type || 'ss';
+  $('f_type').value = state.types.includes(t) ? t : 'ss';
+  onTypeChange();
+  const set = (id, v) => { const el = $(id); if (el && v !== undefined && v !== null) el.value = v; };
+  set('f_name', n.name); set('f_server', n.server); set('f_port', n.port);
+  set('f_password', n.password); set('f_uuid', n.uuid); set('f_aid', n.aid);
+  if (t === 'vmess') set('f_cipher', n.method); else set('f_method', n.method);
+  set('f_protocol', n.protocol); set('f_protocol_param', n.protocol_param);
+  if (t === 'hysteria2') set('f_h2_obfs', n.obfs); else set('f_obfs', n.obfs);
+  set('f_obfs_param', n.obfs_param); set('f_h2_obfs_pw', n.obfs_pw);
+  set('f_ports', n.ports);
+  set('f_network', n.network); set('f_ws_path', n.ws_path); set('f_ws_host', n.ws_host);
+  set('f_grpc_service', n.grpc_service); set('f_flow', n.flow);
+  $('f_tls').checked = !!n.tls; $('f_http_tls').checked = !!n.tls;
+  $('f_reality').checked = !!n.reality;
+  set('f_pbk', n.pbk); set('f_sid', n.sid); set('f_sni', n.sni);
+  set('f_alpn', n.alpn); set('f_fp', n.fp); set('f_auth', n.auth);
+  set('f_up', n.up); set('f_down', n.down); set('f_token', n.token);
+  set('f_congestion', n.congestion); set('f_udp_mode', n.udp_mode);
+  set('f_username', n.username);
+  $('f_insecure').checked = !!n.insecure;
+  set('f_plugin', n.plugin); set('f_plugin_opts', n.plugin_opts);
+  set('f_snell_ver', n.snell_version || n.version);
+  set('f_privkey', n.privkey); set('f_key_pass', n.key_pass);
+  set('f_wg_privkey', n.wg_privkey); set('f_wg_pubkey', n.wg_pubkey);
+  set('f_wg_psk', n.wg_psk); set('f_wg_addr', n.wg_addr);
+  set('f_wg_allowed', n.wg_allowed); set('f_wg_dns', n.wg_dns);
+  set('f_wg_mtu', n.wg_mtu); set('f_wg_keepalive', n.wg_keepalive);
+}
+function openEditNode(id) {
+  const n = state.nodes.find(x => x.id === id);
+  if (!n) return;
+  if (n.source !== 'custom') {
+    if (!confirm('这是订阅节点：修改会在下次刷新订阅时被源内容覆盖，确定继续？')) return;
+  }
+  state.editingNode = id;
+  switchNodeMode('manual');
+  clearNodeForm();
+  fillNodeForm(n);
+  $('nmSeg').style.display = 'none';
+  $('nodeDlgTitle').textContent = '修改节点';
+  $('nodeSubmitBtn').textContent = '保存修改';
+  onTypeChange();
+  $('nodeDlg').showModal();
+  setTimeout(() => $('f_name').focus(), 30);
+}
+/* 单节点测速：走同一个内核实测入口，只测这一个 */
+const _testingNodes = new Set();
+async function testNode(id) {
+  if (_testingNodes.has(id)) return;
+  _testingNodes.add(id);
+  try {
+    const r = await api('/api/health/deep', {method: 'POST', body: {node_ids: [id]}});
+    const res = (r.results || [])[0];
+    if (!res) return toast('测速失败', false);
+    const n = state.nodes.find(x => x.id === id);
+    if (n) Object.assign(n, {probe: res.probe, alive: res.alive, latency_ms: res.latency_ms});
+    renderNodeTable(); loadGroups();
+    toast(res.alive === true
+      ? `${res.name}：可用，延迟 ${res.latency_ms ?? '?'} ms`
+      : res.alive === false ? `${res.name}：不可用` : `${res.name}：无法确认（超时）`);
+  } catch (e) { toast(e.error || '测速失败', false); }
+  finally { _testingNodes.delete(id); }
+}
+async function delNode(id) {
+  if (!confirm('确定删除该节点？')) return;
+  await api('/api/nodes/' + id, {method: 'DELETE'});
+  toast('已删除'); loadNodes(); loadGroups(); loadPublish();
+}
+function openImport() { $('importText').value = ''; $('importDlg').showModal(); }
+async function doImport() {
+  try {
+    const r = await api('/api/nodes/import', {method: 'POST', body: {text: $('importText').value}});
+    closeDlg('importDlg');
+    toast(`导入完成：成功 ${r.added} 个，失败 ${r.failed} 个`);
+    loadNodes(); loadGroups(); loadPublish();
+  } catch (e) { toast(e.error || '导入失败', false); }
+}
+
+/* ---------------- subs ---------------- */
+function renderGroupSelectors() {
+  $('s_group').innerHTML = '<option value="">不自动归组</option>' +
+    state.groups.map(g => `<option value="${g.id}">${esc(g.name)}</option>`).join('');
+  $('ng_sources').innerHTML = state.subs.length
+    ? state.subs.map(s => `<button type="button" class="src-chip" data-id="${s.id}"
+        onclick="this.classList.toggle('on')">${esc(s.name)}</button>`).join('')
+    : '<span class="dim">暂无订阅源，可先创建分组，之后在分组卡片里补挂</span>';
+}
+async function loadSubs() {
+  const d = await api('/api/subs');
+  state.subs = d.subscriptions;
+  state.subNames = {};
+  d.subscriptions.forEach(s => state.subNames[s.id] = s.name);
+  if (!state.groups.length) state.groups = d.groups;
+  renderSubTable();
+  updateKpis();
+}
+function renderSubTable() {
+  const rows = state.subs.map(s => {
+    const gs = state.groups.filter(g => (g.auto_sources || []).includes(s.id))
+      .map(g => `<span class="meta-tag acc">${esc(g.name)}</span>`).join(' ') || '<span class="dim">—</span>';
+    const status = s.error
+      ? '<span class="pill bad">抓取失败</span>'
+      : `<span class="dim">${s.last_update || '尚未抓取'}</span>`;
+    return `<tr>
+      <td data-l="名称 / 地址">
+        <div class="cell-main">${esc(s.name)}</div>
+        <div class="cell-sub mono">${esc(shorten(s.url, 58))}</div>
+      </td>
+      <td class="num dim" data-l="节点">${s.node_count} 节点</td>
+      <td data-l="归入分组">${gs}</td>
+      <td data-l="状态">${status}</td>
+      <td data-l="操作"><div class="row-ops">
+        <button class="btn ghost sm" onclick="refreshSub('${s.id}', this)">刷新</button>
+        ${iconBtn('trash', `delSub('${s.id}')`, '删除订阅源')}
+      </div></td></tr>`;
+  }).join('');
+  $('subTable').querySelector('tbody').innerHTML = rows;
+  const total = state.subs.reduce((a, s) => a + (s.node_count || 0), 0);
+  const failed = state.subs.filter(s => s.error).length;
+  $('subSummary').innerHTML = state.subs.length
+    ? `<span class="dim">共 ${state.subs.length} 个来源 · ${total} 个节点</span>` +
+      (failed ? ` <span class="pill bad">${failed} 个异常</span>` : '')
+    : '';
+  $('subEmpty').style.display = state.subs.length ? 'none' : 'block';
+  $('subTable').style.display = state.subs.length ? '' : 'none';
+}
+async function addSub() {
+  const body = {name: $('s_name').value, url: $('s_url').value, auto_group: $('s_group').value};
+  if (!body.url) return toast('请填写订阅地址', false);
+  try {
+    const r = await api('/api/subs', {method: 'POST', body});
+    $('s_name').value = ''; $('s_url').value = '';
+    closeDlg('subDlg');
+    toast('订阅已添加，正在抓取…');
+    const rr = await api(`/api/subs/${r.subscription.id}/refresh`, {method: 'POST'});
+    toast(`抓取成功：${rr.node_count} 个节点`);
+    await loadSubs(); await loadGroups(); await loadNodes(); await loadPublish();
+    renderGroupSelectors();
+  } catch (e) { toast(e.error || '添加失败', false); }
+}
+/* 按钮触发弹框：添加订阅源 */
+function openSubDlg() {
+  $('s_name').value = ''; $('s_url').value = ''; $('s_group').value = '';
+  renderGroupSelectors();
+  $('subDlg').showModal();
+  setTimeout(() => $('s_url').focus(), 30);
+}
+async function refreshSub(id, btn) {
+  const html = btn.innerHTML;
+  btn.innerHTML = SVG.refresh + '刷新中';
+  btn.disabled = true;
+  try {
+    const r = await api(`/api/subs/${id}/refresh`, {method: 'POST'});
+    toast(`抓取成功：${r.node_count} 个节点`);
+    loadSubs(); loadNodes(); loadGroups(); loadPublish();
+  } catch (e) { toast(e.error || '刷新失败', false); loadSubs(); }
+  btn.innerHTML = html; btn.disabled = false;
+}
+async function refreshAllSubs() {
+  if (!state.subs.length) return toast('暂无订阅源', false);
+  toast('正在刷新全部订阅…');
+  try {
+    const r = await api('/api/subs/refresh_all', {method: 'POST'});
+    const ok = r.summary.filter(x => x.ok).length;
+    const total = r.summary.reduce((a, x) => a + x.nodes, 0);
+    toast(`完成：${ok}/${r.summary.length} 个订阅刷新成功，共 ${total} 个节点`);
+    loadSubs(); loadNodes(); loadGroups(); loadPublish();
+  } catch (e) { toast(e.error || '刷新失败', false); }
+}
+async function delSub(id) {
+  if (!confirm('删除订阅会同时移除它抓取的节点，确定？')) return;
+  await api('/api/subs/' + id, {method: 'DELETE'});
+  toast('已删除'); loadSubs(); loadNodes(); loadGroups(); loadPublish();
+}
+
+/* ---------------- groups ---------------- */
+async function loadGroups() {
+  const d = await api('/api/groups');
+  state.groups = d.groups;
+  state.strategies = d.strategies;
+  const tested = state.groups.reduce((a, g) => Math.max(a, g.tested_count || 0), 0);
+  state.groupTested = tested;
+  renderGroups();
+  updateKpis();
+}
+/* 分组实际包含的节点（与后端 group_member_nodes 一致）：默认组=全部，其余=显式成员 + auto_sources */
+function groupNodes(g) {
+  if (g.is_default) return state.nodes;
+  const auto = new Set(g.auto_sources || []);
+  const ids = new Set(g.members || []);
+  state.nodes.forEach(n => { if (auto.has(n.source)) ids.add(n.id); });
+  const order = {};
+  (g.members || []).forEach((id, i) => { order[id] = i; });
+  return state.nodes.filter(n => ids.has(n.id))
+    .sort((a, b) => (order[a.id] ?? 1e6) - (order[b.id] ?? 1e6));
+}
+function toggleGroupCard(gid, force) {
+  const s = collapsedSet('groups');
+  const collapse = (force === undefined) ? !s.has(gid) : !force;
+  if (collapse) s.add(gid); else s.delete(gid);
+  persistCollapsed('groups');
+  renderGroups();
+}
+function toggleAllGroupCards(force) {
+  const s = collapsedSet('groups');
+  const expand = force !== undefined ? force : s.size > 0;   // 有折叠就全展开，否则全收起
+  state.groups.forEach(g => expand ? s.delete(g.id) : s.add(g.id));
+  persistCollapsed('groups');
+  renderGroups();
+}
+const CHEV = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>';
+const TICK = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>';
+function renderGroups() {
+  const box = $('groupList');
+  const autoTotal = state.groups.filter(g => (g.auto_sources || []).length).length;
+  $('groupCountNote').textContent = state.groups.length
+    ? `${state.groups.length} 个分组 · ${autoTotal} 个挂了订阅源自动归组`
+    : '';
+  if (!state.groups.length) {
+    box.innerHTML = '';
+    box.classList.remove('ggrid');
+    $('groupEmpty').style.display = 'block';
+    return;
+  }
+  $('groupEmpty').style.display = 'none';
+  box.classList.add('ggrid');
+  const collapsed = collapsedSet('groups');
+  const tog = $('btnCollapseAll');
+  if (tog) tog.textContent = collapsed.size ? '全部展开' : '全部折叠';
+  box.innerHTML = state.groups.map(g => {
+    const strat = state.strategies.find(s => s.key === g.strategy) || {};
+    const pub = (state.publish.groups || []).find(x => x.id === g.id) || {};
+    const url = pub.sub_url || '';
+    const nodes = groupNodes(g);
+    const isCol = collapsed.has(g.id);
+    const CAP = 30;
+    const rows = nodes.slice(0, CAP).map(n => {
+      const p = probeInfo(n);
+      return `<div class="srow" title="${esc(n.name)} · ${esc(n.server)}:${n.port}">
+        <span class="sn">${esc(n.name)}</span>
+        <span class="lat ${p.cls}">${esc(p.text)}</span></div>`;
+    }).join('') + (nodes.length > CAP
+      ? `<div class="srow more"><span class="sn">还有 ${nodes.length - CAP} 个节点</span></div>` : '');
+    return `<div class="gcard ${isCol ? 'col' : ''}">
+      <div class="gcard-h" onclick="toggleGroupCard('${g.id}')" title="${isCol ? '展开查看节点' : '收起'}">
+        <span class="gname">${esc(g.name)}</span>
+        <span class="gstrat">${g.is_default ? '默认 · ' : ''}${esc(strat.name || g.strategy)}</span>
+        <span class="gchev">${CHEV}</span>
+      </div>
+      <div class="gsub">
+        <span><b>${nodes.length}</b> 节点 · ${groupHealthPill(g)}</span>
+        <span class="gactions" onclick="event.stopPropagation()">
+          ${iconBtn('order', `previewGroup('${g.id}')`, '查看输出顺序')}
+          ${iconBtn('users', `openMembers('${g.id}')`, '手动挑选成员节点')}
+          ${g.is_default ? '' : iconBtn('edit', `openGroupDlg('${g.id}')`, '编辑分组')
+            + iconBtn('trash', `delGroup('${g.id}')`, '删除分组', 'danger')}
+        </span>
+      </div>
+      ${isCol ? '' : `<div class="gcard-b">
+        ${rows || '<div class="srow more"><span class="sn">该分组暂无节点，点上方「成员」图标挑选</span></div>'}
+        <div class="gfoot">
+          <label class="switch"><input type="checkbox" ${g.skip_dead ? 'checked' : ''}
+            onchange="updateGroup('${g.id}', {skip_dead: this.checked})">自动剔除不可用</label>
+          ${url ? `<span class="spacer"></span>
+            <div class="url-mini" title="${esc(url)}">
+              ${SVG.link}
+              <code>${esc(url.replace(/^https?:\/\/[^/]+/, ''))}</code>
+              ${iconBtn('copy', `copyBtn(this,'${url}')`, '复制该分组的订阅链接')}
+            </div>` : ''}
+        </div>
+      </div>`}
+    </div>`;
+  }).join('');
+}
+/* 按钮触发弹框：新建 / 编辑分组（传 gid 即编辑） */
+function openGroupDlg(gid) {
+  state.editingGroupDlg = gid || null;
+  if (gid) {
+    const g = state.groups.find(x => x.id === gid);
+    if (!g) return;
+    $('groupDlgTitle').textContent = `编辑分组 · ${g.name}`;
+    $('groupDlgDesc').textContent = '修改后点「保存修改」立即生效；该分组的订阅链接内容会随之更新';
+    $('ng_name').value = g.name;
+    $('ng_strategy').value = g.strategy;
+    $('ng_skip').checked = !!g.skip_dead;
+    state.newMembers = [...(g.members || [])];
+    renderGroupSelectors();
+    /* 订阅源自动归组 chips 回显 */
+    document.querySelectorAll('#ng_sources .src-chip').forEach(b =>
+      b.classList.toggle('on', (g.auto_sources || []).includes(b.dataset.id)));
+    $('groupSubmitBtn').textContent = '保存修改';
+  } else {
+    $('groupDlgTitle').textContent = '新建分组';
+    $('groupDlgDesc').textContent = '分组决定「哪些节点」以及「以什么顺序」输出；手动挑选与订阅源自动归组可叠加';
+    $('ng_name').value = '';
+    $('ng_strategy').value = (state.strategies[0] || {}).key || '';
+    $('ng_skip').checked = false;
+    state.newMembers = [];
+    renderGroupSelectors();
+    document.querySelectorAll('#ng_sources .src-chip').forEach(b => b.classList.remove('on'));
+    $('groupSubmitBtn').textContent = '创建分组';
+  }
+  updateNewMemberNote();
+  $('groupDlg').showModal();
+  setTimeout(() => $('ng_name').focus(), 30);
+}
+async function addGroup() {
+  const name = $('ng_name').value.trim();
+  if (!name) return toast('请填写分组名称', false);
+  const auto_sources = [...$('ng_sources').querySelectorAll('.src-chip.on')].map(b => b.dataset.id);
+  const body = {name, strategy: $('ng_strategy').value,
+    members: state.newMembers || [], auto_sources, skip_dead: $('ng_skip').checked};
+  try {
+    if (state.editingGroupDlg) {
+      await api('/api/groups/' + state.editingGroupDlg, {method: 'PUT', body});
+      toast('分组已保存');
+    } else {
+      await api('/api/groups', {method: 'POST', body});
+      toast('分组已创建');
+    }
+    closeDlg('groupDlg');
+    state.editingGroupDlg = null;
+    $('ng_name').value = ''; $('ng_skip').checked = false;
+    state.newMembers = []; updateNewMemberNote();
+    await loadGroups(); await loadPublish(); loadSubs(); renderGroupSelectors();
+  } catch (e) { toast(e.error || '保存失败', false); }
+}
+async function updateGroup(gid, payload) {
+  try {
+    await api('/api/groups/' + gid, {method: 'PUT', body: payload});
+    toast('已保存');
+    await loadGroups(); await loadPublish();
+  } catch (e) { toast(e.error || '保存失败', false); loadGroups(); }
+}
+async function toggleAutoSource(gid, sid, checked) {
+  const g = state.groups.find(x => x.id === gid);
+  if (!g) return;
+  const list = new Set(g.auto_sources || []);
+  checked ? list.add(sid) : list.delete(sid);
+  await updateGroup(gid, {auto_sources: [...list]});
+}
+async function delGroup(gid) {
+  if (!confirm('确定删除该分组？')) return;
+  await api('/api/groups/' + gid, {method: 'DELETE'});
+  toast('已删除'); loadGroups(); loadPublish();
+}
+function openMembers(gid) {
+  state.memberMode = gid === '__new__' ? 'create' : 'edit';
+  state.editingGroup = state.memberMode === 'create' ? null : gid;
+  const g = state.groups.find(x => x.id === gid);
+  if (state.memberMode === 'edit' && !g) return;
+  state.memberDraft = [...currentMemberIds()];
+  $('memberTitle').textContent = state.memberMode === 'create'
+    ? '挑选成员节点 · 新分组' : `选择成员节点 · ${g.name}`;
+  $('memberSearch').value = '';
+  $('memberDlg').showModal();
+  renderMemberPicker();
+}
+function currentMemberIds() {
+  return state.memberMode === 'create'
+    ? (state.newMembers || [])
+    : ((state.groups.find(x => x.id === state.editingGroup) || {}).members || []);
+}
+function memberPool() {
+  const kw = $('memberSearch').value.trim().toLowerCase();
+  $('memberSearchWrap').classList.toggle('has', !!kw);
+  return state.nodes.filter(n =>
+    !kw || n.name.toLowerCase().includes(kw) || n.server.toLowerCase().includes(kw));
+}
+/* 穿梭框：左栏按订阅源分组展示，右栏为已选顺序；行内只显示名称与连通性 */
+function renderMemberPicker() {
+  const pool = memberPool();
+  const draft = state.memberDraft || [];
+  const collapsed = collapsedSet('members');
+  /* 左栏 */
+  let left = '';
+  if (!pool.length) {
+    left = '<div class="empty" style="padding:32px 16px">没有匹配的节点</div>';
+  } else {
+    const bySrc = new Map();
+    for (const n of pool) {
+      const key = n.source || 'custom';
+      if (!bySrc.has(key)) bySrc.set(key, []);
+      bySrc.get(key).push(n);
+    }
+    for (const [src, ns] of bySrc) {
+      const label = src === 'custom' ? '自定义节点' : esc(srcName({source: src}));
+      const sel = ns.filter(n => draft.includes(n.id)).length;
+      const allOn = sel === ns.length;
+      const isCol = collapsed.has(src);
+      left += `<div class="mgrp ${isCol ? 'col' : ''}" onclick="toggleMemberSrc('${src}')">
+          <span class="gchev">${CHEV}</span>
+          <span>${label}</span>
+          <span class="cnt">${sel}/${ns.length}</span>
+          <span class="all" onclick="event.stopPropagation();toggleSrcAll('${src}',${allOn ? 'false' : 'true'})">${allOn ? '移除本组' : '全选本组'}</span>
+        </div>`;
+      if (isCol) continue;
+      left += ns.map(n => {
+        const p = probeInfo(n);
+        const on = draft.includes(n.id);
+        return `<div class="mrow ${on ? 'on' : ''}" onclick="toggleMember('${n.id}')"
+            title="${esc(n.server)}:${n.port} · ${on ? '点击移出' : '点击加入'}">
+          <span class="tick">${on ? TICK : ''}</span>
+          <span class="mname">${esc(n.name)}</span>
+          <span class="lat ${p.cls}">${esc(p.text)}</span>
+        </div>`;
+      }).join('');
+    }
+  }
+  $('tfLeft').innerHTML = left;
+  /* 右栏（已选顺序） */
+  const rows = draft.map((id, idx) => {
+    const n = state.nodes.find(x => x.id === id);
+    if (!n) return '';
+    const p = probeInfo(n);
+    return `<div class="mrow rrow" title="${esc(n.server)}:${n.port}">
+      <span class="idx">${idx + 1}</span>
+      <span class="mname">${esc(n.name)}</span>
+      <span class="lat ${p.cls}">${esc(p.text)}</span>
+      <span class="rops">
+        <button type="button" class="mbtn" onclick="moveMember('${id}',-1)" ${idx === 0 ? 'disabled' : ''} title="上移">↑</button>
+        <button type="button" class="mbtn" onclick="moveMember('${id}',1)" ${idx === draft.length - 1 ? 'disabled' : ''} title="下移">↓</button>
+        <button type="button" class="mbtn" onclick="removeMember('${id}')" title="移除">×</button>
+      </span>
+    </div>`;
+  }).join('');
+  $('tfRight').innerHTML = rows ||
+    '<div class="empty" style="padding:32px 16px">尚未选择节点<br>点击左侧节点加入</div>';
+  /* 头部与底部统计 */
+  const srcs = new Set(draft.map(id => {
+    const n = state.nodes.find(x => x.id === id);
+    return n ? (n.source || 'custom') : null;
+  }).filter(Boolean));
+  $('tfAvailCnt').textContent = `${pool.length} 个`;
+  $('tfAvailSrc').textContent = `${new Set(pool.map(n => n.source || 'custom')).size} 个来源`;
+  $('tfRightCnt').textContent = `${draft.length} 个`;
+  $('memberCount').textContent =
+    `已选 ${draft.length} 个节点 · 来自 ${srcs.size} 个源`;
+}
+function toggleMemberSrc(src) {
+  const s = collapsedSet('members');
+  if (s.has(src)) s.delete(src); else s.add(src);
+  persistCollapsed('members');
+  renderMemberPicker();
+}
+function toggleMember(id) {
+  const d = state.memberDraft;
+  const i = d.indexOf(id);
+  if (i >= 0) d.splice(i, 1); else d.push(id);
+  renderMemberPicker();
+}
+function removeMember(id) {
+  const d = state.memberDraft;
+  const i = d.indexOf(id);
+  if (i >= 0) d.splice(i, 1);
+  renderMemberPicker();
+}
+function moveMember(id, dir) {
+  const d = state.memberDraft;
+  const i = d.indexOf(id);
+  const j = i + dir;
+  if (i < 0 || j < 0 || j >= d.length) return;
+  [d[i], d[j]] = [d[j], d[i]];
+  renderMemberPicker();
+}
+function toggleSrcAll(src, on) {
+  const ids = memberPool().filter(n => (n.source || 'custom') === src).map(n => n.id);
+  const d = state.memberDraft;
+  if (on) {
+    for (const id of ids) if (!d.includes(id)) d.push(id);
+  } else {
+    state.memberDraft = d.filter(id => !ids.includes(id));
+  }
+  renderMemberPicker();
+}
+function addVisibleMembers() {
+  const d = state.memberDraft;
+  for (const n of memberPool()) if (!d.includes(n.id)) d.push(n.id);
+  renderMemberPicker();
+}
+function selectAllMembers() { addVisibleMembers(); }
+function clearMembers() { state.memberDraft = []; renderMemberPicker(); }
+async function saveMembers() {
+  const ids = [...(state.memberDraft || [])];
+  closeDlg('memberDlg');
+  if (state.memberMode === 'create') {
+    state.newMembers = ids;
+    updateNewMemberNote();
+  } else {
+    await updateGroup(state.editingGroup, {members: ids});
+  }
+}
+function updateNewMemberNote() {
+  const n = (state.newMembers || []).length;
+  $('ng_members_note').textContent = n
+    ? `已挑 ${n} 个节点，点按钮可增删` : '不挑则用下方订阅源自动归组；两者可叠加';
+}
+async function previewGroup(gid) {
+  const d = await api(`/api/groups/${gid}/preview`);
+  const lines = d.nodes.map((n, i) => {
+    const lat = probeInfo(n).text;
+    return `${String(i + 1).padStart(2, ' ')}  ${n.name.padEnd(20, ' ')}  ${(n.server + ':' + n.port).padEnd(26, ' ')}  ${lat}`;
+  });
+  $('previewTitle').textContent = `输出顺序 · ${d.note} · 共 ${d.count} 个节点`;
+  $('previewText').value = lines.join('\n') || '（该分组暂无节点）';
+  $('previewDlg').showModal();
+}
+
+/* ---------------- health / settings ---------------- */
+/* 唯一测速入口：mihomo 内核真实协议握手 + 代理请求；不支持协议回退端口探测 */
+async function runSpeedTest() {
+  const btns = [$('btnCheck'), ...document.querySelectorAll('.head-actions .btn')]
+    .filter(b => b && b.textContent.includes('测速'));
+  btns.forEach(b => { b._t = b.innerHTML; b.innerHTML = '测速中…'; b.disabled = true; });
+  toast('测速进行中：内核逐节点真实握手，约需 40 秒…');
+  try {
+    const r = await api('/api/health/deep', {method: 'POST', body: {}});
+    const extra = [];
+    if (r.unknown) extra.push(`${r.unknown} 个无法确认`);
+    if (r.port_only) extra.push(`${r.port_only} 个仅端口验证`);
+    toast(`测速完成：${r.alive} 个可用 / ${r.dead} 个不可用` +
+      (extra.length ? ` / ${extra.join(' / ')}` : ''));
+    await loadNodes(); await loadGroups(); await loadPublish();
+  } catch (e) { toast(e.error || '测速失败', false); }
+  btns.forEach(b => { if (b._t) b.innerHTML = b._t; b.disabled = false; });
+}
+/* 设置弹框：自动测速 / 登录密码 */
+function openSettings() {
+  $('settingsDlg').showModal();
+}
+async function loadSettings() {  const d = await api('/api/settings');
+  const settings = d.settings;
+  state.settings = settings;
+  state.hasPassword = !!d.has_password;
+  $('autoHealth').checked = !!settings.auto_health;
+  $('healthInterval').value = settings.health_interval_minutes;
+  $('requireLogin').checked = settings.require_login !== false;
+  $('btnChangePw').style.display = state.hasPassword ? '' : 'none';
+}
+async function saveSettings() {
+  const body = {auto_health: $('autoHealth').checked,
+    health_interval_minutes: parseInt($('healthInterval').value || '30', 10)};
+  await api('/api/settings', {method: 'PUT', body});
+  state.settings = {...state.settings, ...body};
+  toast(body.auto_health ? `已开启自动测速（每 ${body.health_interval_minutes} 分钟）` : '已关闭自动测速');
+}
+/* 登录开关：关掉后刷新页面直接进主界面；重新打开时若还没密码会先让你设一个 */
+async function onRequireLoginChange() {
+  const on = $('requireLogin').checked;
+  try {
+    if (!on) {
+      await api('/api/settings', {method: 'PUT', body: {require_login: false}});
+      state.settings.require_login = false;
+      state.authEnabled = false;
+      $('btnLogout').style.display = 'none';
+      toast('已关闭登录，刷新页面将直接进入配置中心');
+      return;
+    }
+    if (!state.hasPassword) {
+      const pw = prompt('设置管理密码（至少 4 位）：');
+      if (!pw) { $('requireLogin').checked = false; return toast('未设置密码，保持关闭', false); }
+      if (pw.length < 4) { $('requireLogin').checked = false; return toast('密码至少 4 位，保持关闭', false); }
+      await api('/api/password', {method: 'PUT', body: {password: pw}});
+      state.hasPassword = true;
+      $('btnChangePw').style.display = '';
+    }
+    await api('/api/settings', {method: 'PUT', body: {require_login: true}});
+    state.settings.require_login = true;
+    state.authEnabled = true;
+    $('btnLogout').style.display = '';
+    toast('已开启登录保护');
+  } catch (e) { $('requireLogin').checked = !on; toast(e.error || '保存失败', false); }
+}
+async function changePassword() {
+  const pw = prompt('新的管理密码（至少 4 位）：');
+  if (!pw) return;
+  if (pw.length < 4) return toast('密码至少 4 位', false);
+  try {
+    await api('/api/password', {method: 'PUT', body: {password: pw}});
+    state.hasPassword = true;
+    toast('密码已更新（节点/分组/订阅数据不受影响）');
+  } catch (e) { toast(e.error || '修改失败', false); }
+}
+
+/* ---------------- rules（表单 + 配置文件 双模式） ----------------
+   服务端 surge_rules 是唯一真源；表单行与文本行可无损互转（parse_rule_rows / rule_rows_to_text）。*/
+const RULE_TPLS = {
+  basic: `# 自上而下匹配，最后一条 FINAL 为兜底出口
+DOMAIN-SUFFIX,cn,DIRECT
+DOMAIN-KEYWORD,baidu,DIRECT
+DOMAIN-SUFFIX,qq.com,DIRECT
+DOMAIN-SUFFIX,tencent.com,DIRECT
+DOMAIN-SUFFIX,taobao.com,DIRECT
+DOMAIN-SUFFIX,tmall.com,DIRECT
+DOMAIN-SUFFIX,alicdn.com,DIRECT
+DOMAIN-SUFFIX,jd.com,DIRECT
+DOMAIN-SUFFIX,bilibili.com,DIRECT
+DOMAIN-SUFFIX,163.com,DIRECT
+DOMAIN-SUFFIX,126.com,DIRECT
+IP-CIDR,127.0.0.0/8,DIRECT,no-resolve
+IP-CIDR,192.168.0.0/16,DIRECT,no-resolve
+IP-CIDR,10.0.0.0/8,DIRECT,no-resolve
+IP-CIDR,172.16.0.0/12,DIRECT,no-resolve
+GEOIP,CN,DIRECT
+FINAL,PROXY
+`,
+  global: `# 所有流量走代理
+FINAL,PROXY
+`,
+  direct: `# 所有流量直连（不代理）
+FINAL,DIRECT
+`,
+};
+const FINAL_TYPES = ['FINAL', 'MATCH'];
+
+/* ---- 行 ↔ 文本 ---- */
+function rowsToText(rows) {
+  return (rows || []).map(r => {
+    if (r.kind === 'raw') return r.text || '';
+    if (r.kind === 'final') return 'FINAL,' + (r.action || 'PROXY');
+    if (r.kind === 'rule') {
+      const seg = [String(r.type || 'DOMAIN-SUFFIX').toUpperCase(),
+        String(r.value || '').trim(), (r.action || 'PROXY').trim()]
+        .concat((r.extra || []).map(e => String(e).trim()).filter(Boolean));
+      return seg.join(',');
+    }
+    return '';
+  }).join('\n');
+}
+function textToRows(text) {
+  return (text || '').split('\n').map(l => l.trim()).filter(Boolean).map(line => {
+    if (line.startsWith('#') || line.startsWith(';')) return {kind: 'raw', text: line};
+    const p = line.split(',').map(x => x.trim());
+    const typ = p[0].toUpperCase();
+    if (FINAL_TYPES.includes(typ)) return {kind: 'final', action: (p[1] || 'PROXY')};
+    if (!(typ in state.ruleTypes) || p.length < 3 || !p[1]) return {kind: 'raw', text: line};
+    return {kind: 'rule', type: typ, value: p[1], action: p[2],
+      extra: p.slice(3).filter(Boolean)};
+  });
+}
+
+/* ---- 模式切换 ---- */
+function setRuleMode(m) {
+  const prev = state.ruleMode2;
+  if (m === prev) return;
+  // 切换前先把当前模式的内容同步进 state.ruleRows，避免丢改动
+  if (prev === 'text') state.ruleRows = textToRows($('rulesText').value);
+  if (m === 'text') $('rulesText').value = rowsToText(state.ruleRows);
+  state.ruleMode2 = m;
+  $('ruleFormPane').style.display = m === 'form' ? '' : 'none';
+  $('ruleTextPane').style.display = m === 'text' ? '' : 'none';
+  document.querySelectorAll('#ruleSeg button').forEach(b =>
+    b.classList.toggle('on', b.dataset.rmode === m));
+  $('ruleHint').textContent = m === 'form'
+    ? '选好匹配类型、填值、选动作即可，顺序即优先级'
+    : '直接编辑配置文件文本，支持注释行（# 开头）与任意 Surge 写法';
+  renderRuleRows();
+}
+/* 动作下拉：默认出口 / 直连 / 拦截 + 全部策略组；当前值不在列表里则补一个 */
+function actionOptions(cur) {
+  const groups = (state.groups || []).map(g => g.name);
+  const known = ['PROXY', 'DIRECT', 'REJECT'].concat(groups);
+  const label = a => a === 'PROXY' ? '走默认出口' : a === 'DIRECT' ? '直连'
+    : a === 'REJECT' ? '拦截' : a;
+  let html = ['PROXY', 'DIRECT', 'REJECT'].map(a =>
+    `<option value="${esc(a)}" ${a === cur ? 'selected' : ''}>${label(a)}</option>`).join('');
+  if (groups.length) html += `<optgroup label="指定策略组">` +
+    groups.map(g => `<option value="${esc(g)}" ${g === cur ? 'selected' : ''}>${esc(g)}</option>`).join('') +
+    `</optgroup>`;
+  if (cur && !known.includes(cur))
+    html += `<option value="${esc(cur)}" selected>${esc(cur)}</option>`;
+  return html;
+}
+function typeOptions(cur) {
+  return Object.keys(state.ruleTypes).map(t =>
+    `<option value="${t}" ${t === cur ? 'selected' : ''}>${esc(state.ruleTypes[t])}（${t}）</option>`).join('');
+}
+const ACTION_DESC = {DIRECT: '直连', REJECT: '拦截', PROXY: '走默认出口'};
+
+const isCommentText = t => { const s = (t || '').trim(); return s.startsWith('#') || s.startsWith(';'); };
+/* 注释行收纳：# / ; 开头的行不进规则表格，在折叠条里统一编辑；保存时原样保留在原位置 */
+function syncComments(text) {
+  const lines = (text || '').split('\n').map(x => x.trim()).filter(Boolean)
+    .map(l => isCommentText(l) ? l : '# ' + l);
+  const rows = state.ruleRows || [];
+  const isCmt = r => r.kind === 'raw' && isCommentText(r.text);
+  const others = rows.filter(r => !isCmt(r));
+  const firstIdx = rows.findIndex(isCmt);
+  const cmtRows = lines.map(l => ({kind: 'raw', text: l}));
+  if (firstIdx >= 0) {
+    const before = rows.slice(0, firstIdx).filter(r => !isCmt(r)).length;
+    state.ruleRows = [...others.slice(0, before), ...cmtRows, ...others.slice(before)];
+  } else if (cmtRows.length) {
+    state.ruleRows = [...cmtRows, ...others];
+  } else {
+    state.ruleRows = others;
+  }
+}
+function renderRuleRows() {
+  const rows = state.ruleRows || [];
+  const isCmt = r => r.kind === 'raw' && isCommentText(r.text);
+  const box = $('ruleRows');
+  /* 注释收纳条（折叠，默认收起） */
+  const cmts = rows.filter(isCmt);
+  const cmtBox = $('ruleComments');
+  if (cmts.length) {
+    const open = cmtBox.open;
+    cmtBox.style.display = '';
+    cmtBox.innerHTML = `<summary>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        ${cmts.length} 行注释 · 保存时原样保留，不参与匹配</summary>
+      <textarea spellcheck="false" oninput="syncComments(this.value)">${esc(cmts.map(c => c.text).join('\n'))}</textarea>`;
+    cmtBox.open = open;
+  } else {
+    cmtBox.style.display = 'none';
+  }
+  const vis = rows.filter(r => !isCmt(r));
+  if (!vis.length) {
+    box.innerHTML = `<div style="padding:40px 20px;text-align:center;color:var(--text-3);font-size:13px">
+      还没有规则，点右上角「新增规则」开始配置</div>`;
+  } else {
+    box.innerHTML = rows.map((r, i) => {
+      if (isCmt(r)) return '';
+      const ops = `<div class="rops">
+        ${iconBtn('up', `moveRuleRow(${i},-1)`, '上移')}
+        ${iconBtn('down', `moveRuleRow(${i},1)`, '下移')}
+        ${iconBtn('trash', `delRuleRow(${i})`, '删除')}
+      </div>`;
+      if (r.kind === 'raw') {
+        return `<div class="rrow raw">
+          <span class="ridx">${i + 1}</span>
+          <span class="rtag">原文行</span>
+          <div class="rraw" title="${esc(r.text)}">${esc(r.text)}</div>
+          <span class="dim" style="font-size:11.5px">不参与表单解析</span>
+          <span></span>${ops}</div>`;
+      }
+      if (r.kind === 'final') {
+        return `<div class="rrow final">
+          <span class="ridx">${i + 1}</span>
+          <span class="rtag ftag">兜底 FINAL</span>
+          <span class="dim" style="font-size:12px">其余所有流量都从这个出口出去</span>
+          <select class="raction" onchange="setRuleField(${i},'action',this.value)">${actionOptions(r.action)}</select>
+          <span></span>${ops}</div>`;
+      }
+      const noResolve = (r.extra || []).includes('no-resolve');
+      return `<div class="rrow">
+        <span class="ridx">${i + 1}</span>
+        <select class="rtype" onchange="ruleSetType(${i},this.value)">${typeOptions(r.type)}</select>
+        <input class="rval" type="text" value="${esc(r.value)}" placeholder="如 example.com"
+          oninput="setRuleField(${i},'value',this.value)">
+        <select class="raction" onchange="setRuleField(${i},'action',this.value)">${actionOptions(r.action)}</select>
+        <label class="switch rnr" title="IP-CIDR / GEOIP 类规则常用，避免发 DNS 查询">
+          <input type="checkbox" ${noResolve ? 'checked' : ''}
+            onchange="toggleRuleExtra(${i},'no-resolve',this.checked)">no-resolve</label>
+        ${ops}</div>`;
+    }).join('');
+  }
+  /* 只有「真正认不出的写法」才提示；注释已收纳不算 */
+  const unk = rows.filter(r => r.kind === 'raw' && !isCmt(r)).length;
+  $('ruleUnknownNote').style.display = unk ? '' : 'none';
+  $('ruleUnknownNote').textContent = unk ? `${unk} 行无法解析，以原文保留` : '';
+  state.ruleGroupsSig = (state.groups || []).map(g => g.name).join('|');
+  updateRuleMode();
+}
+function ruleSetType(i, t) { state.ruleRows[i].type = t; renderRuleRows(); }
+function setRuleField(i, k, v) {
+  state.ruleRows[i][k] = v;
+  if (k === 'action') updateRuleMode();
+}
+function toggleRuleExtra(i, key, on) {
+  const r = state.ruleRows[i];
+  const s = new Set(r.extra || []);
+  on ? s.add(key) : s.delete(key);
+  r.extra = [...s];
+}
+function addRuleRow(kind) {
+  if (kind === 'final') state.ruleRows.push({kind: 'final', action: 'PROXY'});
+  else if (kind === 'raw') state.ruleRows.push({kind: 'raw', text: ''});
+  else state.ruleRows.push({kind: 'rule', type: 'DOMAIN-SUFFIX', value: '',
+    action: 'PROXY', extra: []});
+  renderRuleRows();
+  const box = $('ruleRows');
+  if (box.lastElementChild) box.lastElementChild.scrollIntoView({block: 'nearest'});
+}
+
+/* ---------------- 按钮触发弹框：新增规则 ---------------- */
+function openRuleDlg(kind) {
+  /* 文本模式下先按当前文本重建表单行，避免两套数据不一致 */
+  if (state.ruleMode2 === 'text') { state.ruleRows = textToRows($('rulesText').value); setRuleMode('form'); }
+  $('rd_type').innerHTML = typeOptions('DOMAIN-SUFFIX') +
+    `<optgroup label="特殊行">
+       <option value="__FINAL__">兜底 FINAL（其余流量的出口）</option>
+       <option value="__RAW__">原文行（不解析，原样输出）</option>
+     </optgroup>`;
+  $('rd_type').value = kind === 'final' ? '__FINAL__' : 'DOMAIN-SUFFIX';
+  $('rd_value').value = '';
+  $('rd_raw').value = '';
+  $('rd_action').innerHTML = actionOptions('PROXY');
+  $('rd_noresolve').checked = false;
+  onRuleDlgType();
+  $('ruleDlg').showModal();
+  setTimeout(() => $(($('rd_type').value === '__FINAL__') ? 'rd_action' : 'rd_value').focus(), 30);
+}
+function onRuleDlgType() {
+  const t = $('rd_type').value;
+  const isFinal = t === '__FINAL__', isRaw = t === '__RAW__';
+  $('rd_valueField').style.display = (isFinal || isRaw) ? 'none' : '';
+  $('rd_rawField').style.display = isRaw ? '' : 'none';
+  $('rd_actionField').style.display = isRaw ? 'none' : '';
+  $('rd_noresolveField').style.display = (!isFinal && !isRaw) ? '' : 'none';
+}
+function saveRuleDlg() {
+  const t = $('rd_type').value;
+  let row = null;
+  if (t === '__FINAL__') {
+    row = {kind: 'final', action: $('rd_action').value || 'PROXY'};
+  } else if (t === '__RAW__') {
+    const text = $('rd_raw').value.trim();
+    if (!text) return toast('请填写原文行内容', false);
+    row = {kind: 'raw', text};
+  } else {
+    const value = $('rd_value').value.trim();
+    if (!value) return toast('请填写规则的值', false);
+    row = {kind: 'rule', type: t, value, action: $('rd_action').value || 'PROXY', extra: []};
+    if ($('rd_noresolve').checked) row.extra.push('no-resolve');
+  }
+  const rows = state.ruleRows || (state.ruleRows = []);
+  if (row.kind === 'final') {
+    rows.push(row);                       // 兜底放最后
+  } else {
+    const fi = rows.findIndex(r => r.kind === 'final');
+    if (fi >= 0) rows.splice(fi, 0, row);  // 插到 FINAL 之前，否则会被兜底吞掉
+    else rows.push(row);
+  }
+  closeDlg('ruleDlg');
+  renderRuleRows();
+  toast(row.kind === 'final' ? '已添加兜底 FINAL，记得点「保存规则」下发'
+    : '规则已添加，记得点「保存规则」下发');
+}
+function delRuleRow(i) { state.ruleRows.splice(i, 1); renderRuleRows(); }
+function moveRuleRow(i, d) {
+  const j = i + d;
+  if (j < 0 || j >= state.ruleRows.length) return;
+  const [r] = state.ruleRows.splice(i, 1);
+  state.ruleRows.splice(j, 0, r);
+  renderRuleRows();
+}
+
+function updateRuleMode() {
+  const rows = state.ruleMode2 === 'text' ? textToRows($('rulesText').value) : (state.ruleRows || []);
+  let direct = 0, reject = 0, policy = 0, total = 0;
+  let firstFinal = -1, lastRule = -1;
+  rows.forEach((r, i) => {
+    if (r.kind === 'raw') return;
+    total++;
+    if (r.kind === 'final') { if (firstFinal < 0) firstFinal = i; return; }
+    lastRule = i;
+    const a = (r.action || '').toUpperCase();
+    if (a === 'DIRECT') direct++;
+    else if (a === 'REJECT') reject++;
+    else policy++;
+  });
+  const hasFinal = firstFinal >= 0;
+  const shadowed = hasFinal && lastRule > firstFinal;   // FINAL 之后的规则不会被匹配到
+  if (!hasFinal) { $('ruleMode').textContent = '缺少 FINAL'; $('ruleMode').className = 'pill warn'; }
+  else if (shadowed) { $('ruleMode').textContent = 'FINAL 未在最后'; $('ruleMode').className = 'pill warn'; }
+  else { $('ruleMode').textContent = '已含 FINAL'; $('ruleMode').className = 'pill ok'; }
+  $('ruleStats').textContent = `${total} 条 · 直连 ${direct} · 走策略 ${policy}` +
+    (reject ? ` · 拦截 ${reject}` : '') + (shadowed ? ' · FINAL 后有规则会被忽略' : '');
+}
+async function loadRules() {
+  const d = await api('/api/rules');
+  state.ruleTypes = d.rule_types || {};
+  state.ruleActions = d.rule_actions || ['PROXY', 'DIRECT', 'REJECT'];
+  state.ruleRows = d.rule_rows || [];
+  state.rulesSaved = d.surge_rules || '';
+  $('rulesText').value = state.rulesSaved;
+  renderRuleRows();
+}
+async function saveRules() {
+  // 表单模式提交结构化行，文本模式提交原文；服务端都会落成同一份 surge_rules
+  const body = state.ruleMode2 === 'form'
+    ? {rule_rows: state.ruleRows}
+    : {surge_rules: $('rulesText').value};
+  await api('/api/rules', {method: 'PUT', body});
+  await loadRules();
+  state.rulesSaved = rowsToText(state.ruleRows);
+  loadPublish();
+  toast('规则已保存，配置文件已重新生成，客户端刷新即生效');
+}
+function applyRuleTpl(k) {
+  if (!RULE_TPLS[k]) return;
+  if (!confirm('用该模板覆盖当前规则内容？')) return;
+  state.ruleRows = textToRows(RULE_TPLS[k]);
+  $('rulesText').value = RULE_TPLS[k];
+  renderRuleRows();
+}
+function resetRules() {
+  state.ruleRows = textToRows(state.rulesSaved || '');
+  $('rulesText').value = state.rulesSaved || '';
+  renderRuleRows();
+}
+
+/* ---------------- publish ---------------- */
+async function loadPublish() {
+  state.publish = await api('/api/publish');
+  $('pubSubUrl').textContent = state.publish.sub_url;
+  $('pubAclUrl').textContent = state.publish.acl_url;
+  $('pubConfUrl').textContent = state.publish.conf_url || '';
+  $('groupsJsonLink').href = state.publish.groups_url;
+  renderSrImport();
+  renderPublishGroups();
+  renderGroups();
+}
+/* Shadowrocket 一键导入：shadowrocket://add/sub://<base64(url)>?remark=名称 */
+function srScheme(url, remark) {
+  const b64 = btoa(unescape(encodeURIComponent(url)));
+  return `shadowrocket://add/sub://${b64}?remark=${encodeURIComponent(remark)}`;
+}
+function renderSrImport() {
+  if (!state.publish.conf_url) return;
+  $('srImportBtn').href = srScheme(state.publish.sub_url, '配置中心 · 节点');
+  $('srConfBtn').href = srScheme(state.publish.conf_url, '配置中心 · 完整配置');
+  const sel = $('srFinal');
+  const cur = state.publish.sr_final_group || '';
+  sel.innerHTML = `<option value="" ${cur ? '' : 'selected'}>首个分组（自动）</option>` +
+    state.publish.groups.map(g =>
+      `<option value="${g.id}" ${g.id === cur ? 'selected' : ''}>${esc(g.name)}（${esc(g.strategy_name)}）</option>`).join('');
+  $('srUdp').checked = !!state.publish.sr_udp_relay;
+  $('srTestUrl').value = state.publish.sr_test_url || 'http://www.gstatic.com/generate_204';
+  $('srInterval').value = state.publish.sr_interval || 300;
+  $('srTolerance').value = state.publish.sr_tolerance != null ? state.publish.sr_tolerance : 50;
+}
+async function saveSrSettings() {
+  const body = {
+    sr_final_group: $('srFinal').value,
+    sr_udp_relay: $('srUdp').checked,
+    sr_test_url: $('srTestUrl').value.trim() || 'http://www.gstatic.com/generate_204',
+    sr_interval: parseInt($('srInterval').value, 10) || 300,
+    sr_tolerance: parseInt($('srTolerance').value, 10) || 0
+  };
+  try {
+    await api('/api/settings', {method: 'PUT', body});
+    state.publish = await api('/api/publish');
+    renderSrImport();
+    toast('Shadowrocket 配置已更新，客户端重新下载配置即生效');
+  } catch (e) { toast(e.error || '保存失败', false); }
+}
+function typeBadges(counts) {
+  if (!counts) return '';
+  const parts = Object.keys(counts).map(t => `${esc(state.typeLabels[t] || t)} ${counts[t]}`);
+  return parts.length ? `<span class="gmeta">${parts.join(' · ')}</span>` : '';
+}
+function renderPublishGroups() {
+  const groups = state.publish.groups || [];
+  $('pubGroupCard').innerHTML = groups.length ? groups.map(g => `
+    <div class="prow">
+      <div class="prow-main">
+        <div class="prow-title">
+          <span class="gname" style="font-size:13.5px">${esc(g.name)}</span>
+          <span class="gmeta">${esc(g.strategy_name)} · <b>${g.node_count}</b> 节点</span>
+          ${groupHealthPill(g)}
+          ${typeBadges(g.type_counts)}
+        </div>
+        <div class="prow-url"><code>${esc(g.sub_url)}</code></div>
+      </div>
+      <div class="prow-ops">
+        <a class="btn ghost sm" href="${esc(g.import_url || srScheme(g.sub_url, g.name))}" onclick="toast('请在 iPhone 上用 Safari 打开本页面后点按');return false;">${SVG.plus || ''}导入</a>
+        <button class="btn ghost sm" onclick="openPreview('${g.raw_url}','${esc(g.name)}')">${SVG.eye}预览</button>
+        <button class="btn sm" onclick="copyBtn(this, '${g.sub_url}')">${SVG.copy}复制链接</button>
+      </div>
+    </div>`).join('') : `
+    <div class="empty">
+      <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round"><rect x="3" y="3" width="7" height="7" rx="1.6"/><rect x="14" y="3" width="7" height="7" rx="1.6"/><rect x="3" y="14" width="7" height="7" rx="1.6"/><rect x="14" y="14" width="7" height="7" rx="1.6"/></svg>
+      <div>还没有分组，先到「分组与策略」创建一个</div>
+    </div>`;
+}
+async function rotateToken() {
+  if (!confirm('重置后旧订阅链接立即失效，客户端需重新添加，确定？')) return;
+  state.publish = await api('/api/publish/rotate', {method: 'POST'});
+  $('pubSubUrl').textContent = state.publish.sub_url;
+  $('pubAclUrl').textContent = state.publish.acl_url;
+  renderPublishGroups(); renderGroups();
+  toast('Token 已重置');
+}
+async function openPreview(url, title) {
+  const res = await fetch(url);
+  const text = await res.text();
+  $('previewTitle').textContent = `订阅内容预览 · ${title}`;
+  $('previewText').value = text || '（暂无节点）';
+  $('previewDlg').showModal();
+}
+
+/* toast 容器进入顶层（弹框打开时提示不被遮罩挡住）；不支持 popover 的浏览器自动降级 */
+(function initToastLayer() {
+  const box = $('toast');
+  if (typeof box.showPopover !== 'function') return;
+  box.setAttribute('popover', 'manual');
+  try { box.showPopover(); } catch (e) {}
+})();
+
+/* ---------------- 侧栏折叠 ---------------- */
+function applySide(collapsed) {
+  $('mainView').classList.toggle('collapsed', collapsed);
+  const b = $('sideToggle');
+  if (b) {
+    b.title = collapsed ? '展开侧栏' : '折叠侧栏';
+    b.setAttribute('aria-expanded', String(!collapsed));
+  }
+}
+function toggleSide() {
+  const collapsed = !$('mainView').classList.contains('collapsed');
+  applySide(collapsed);
+  try { localStorage.setItem('ss_side_collapsed', collapsed ? '1' : '0'); } catch (e) {}
+}
+(function restoreSide() {
+  let c = false;
+  try { c = localStorage.getItem('ss_side_collapsed') === '1'; } catch (e) {}
+  if (c) applySide(true);
+})();
+
+checkStatus();
+</script>
+</body>
+</html>

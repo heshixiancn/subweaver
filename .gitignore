@@ -1,0 +1,24 @@
+# ===== 绝不入库：数据与密钥 =====
+data.json
+data.json.*
+shadowrocket.db
+shadowrocket.db-*
+*.db
+*.db-wal
+*.db-shm
+output/
+server.log
+
+# ===== 本地内核二进制（体积大且随平台不同，README 里给出下载方式）=====
+bin/
+
+# ===== Python =====
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# ===== 工具与工作区 =====
+.workbuddy/
+.DS_Store

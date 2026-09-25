@@ -1,0 +1,14 @@
+services:
+  shadowrocket-config:
+    build: .
+    # 或者用 GitHub Actions 构建好的镜像：
+    # image: ghcr.io/<你的用户名>/shadowsocket-proxy:latest
+    container_name: shadowrocket-config
+    ports:
+      - "5017:5017"
+    volumes:
+      # 数据（SQLite + 订阅产物）持久化到宿主机 ./data
+      - ./data:/app/data
+    environment:
+      TZ: Asia/Shanghai
+    restart: unless-stopped
