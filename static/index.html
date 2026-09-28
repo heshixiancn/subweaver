@@ -192,11 +192,11 @@ dialog[open]{animation:dlgIn .28s var(--ease)}
 dialog::backdrop{animation:fadeIn .24s ease}
 section[id^="tab-"]{animation:fadeUp .32s var(--ease)}
 /* 展开内容（分组成员列表 / 来源节点网格）出现时的阻尼感 */
-.gcard-b,.nsec .ngrid{animation:fadeUp .3s var(--ease)}
+.nsec .ngrid,#gvRows{animation:fadeUp .3s var(--ease)}
 /* 按压反馈：可点的都会轻轻缩一下 */
 .nav button,.tabbar button,.src-chip{transition:transform .18s var(--ease),background .16s,color .16s,box-shadow .16s}
 .nav button:active,.tabbar button:active,.src-chip:active{transform:scale(.94)}
-.gcard-h:active .gname{opacity:.6}
+.gcard:active,.ncard:active{transform:scale(.985)}
 .nsec-h:active .nsname{opacity:.6}
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation:none!important;transition:none!important}
@@ -279,6 +279,10 @@ details.adv .grid{margin-top:14px}
   background:rgba(255,255,255,.5)}
 .rhead,.rrow{display:grid;grid-template-columns:24px 158px minmax(140px,1fr) 156px 92px 88px;
   gap:8px;align-items:center;padding:5px 12px}
+/* 非 IP 类规则行不再渲染 no-resolve，桌面网格退为 5 列（仅桌面，避免压掉手机端媒体查询） */
+@media (min-width:821px){
+  .rrow:not(.ip):not(.raw):not(.final){grid-template-columns:24px 158px minmax(140px,1fr) 156px 88px}
+}
 .rhead{background:transparent;font-size:10.5px;color:var(--text-3);font-weight:600;
   letter-spacing:.06em;text-transform:uppercase;border-bottom:1px solid var(--hair);
   padding:8px 12px}
@@ -306,22 +310,33 @@ details.adv .grid{margin-top:14px}
 .rtag.ftag{border-color:transparent;background:var(--accent-soft);color:var(--accent-2)}
 @media (max-width:820px){
   .rhead{display:none}
-  /* 规则行：序号钉在左，类型/值/动作排成紧凑网格，不再整块堆叠 */
-  .rrow{grid-template-columns:22px minmax(0,1fr) minmax(0,1fr);
-    grid-template-areas:"idx type type" "idx val val" "idx act nr" "idx ops ops";
-    gap:7px;padding:10px 12px}
-  .rrow>.ridx{grid-area:idx;align-self:start;line-height:32px}
+  #ruleHint{display:none}
+  /* 规则行：两行紧凑布局——序号 | 类型 | 动作 / 值 | 操作按钮；IP 类规则才有 no-resolve 第三行 */
+  .rrow{grid-template-columns:20px minmax(0,1fr) 92px;
+    grid-template-areas:"idx type act" "idx val ops";
+    gap:6px 8px;padding:8px 10px}
+  .rrow>.ridx{grid-area:idx;line-height:34px;font-size:10.5px}
   .rrow>.rtype{grid-area:type}
   .rrow>.rval{grid-area:val}
   .rrow>.raction{grid-area:act}
-  .rrow>.rnr{grid-area:nr;justify-self:start}
-  .rrow>.rops{grid-area:ops;justify-content:flex-end}
-  .rrow.raw{grid-template-areas:"idx tag tag" "idx raw raw" "idx ops ops"}
+  .rrow>.rops{grid-area:ops;justify-content:flex-end;opacity:1}
+  .rrow .rops .btn.icon{width:28px;height:28px}
+  .rrow.ip{grid-template-areas:"idx type act" "idx val val" "idx nr ops"}
+  .rrow.ip>.rnr{grid-area:nr;justify-self:start}
+  .rrow.raw{grid-template-areas:"idx tag ops" "idx raw raw"}
   .rrow.raw>.rtag{grid-area:tag}
   .rrow.raw>.rraw{grid-area:raw;white-space:normal;word-break:break-all}
   .rrow.raw>.dim,.rrow.raw>span:not(.ridx):not(.rtag){display:none}
-  .rrow.final{grid-template-areas:"idx tag tag" "idx act act" "idx ops ops"}
+  .rrow.final{grid-template-columns:20px minmax(0,1fr) 92px 96px;
+    grid-template-areas:"idx tag act ops"}
   .rrow.final>.dim,.rrow.final>span:not(.ridx):not(.rtag){display:none}
+  /* DNS 指定域名行：两行式（域名+模式+删除 / 取值） */
+  .dhrow{grid-template-columns:minmax(0,1fr) 104px 34px;
+    grid-template-areas:"dom mode del" "val val del";gap:6px 8px}
+  .dhrow>*:nth-child(1){grid-area:dom}
+  .dhrow>*:nth-child(2){grid-area:mode}
+  .dhrow>*:nth-child(3){grid-area:val}
+  .dhrow>*:nth-child(4){grid-area:del}
 }
 .src-chips{display:flex;flex-wrap:wrap;gap:6px}
 .src-chip{
@@ -375,6 +390,40 @@ details.adv .grid{margin-top:14px}
   border:1px solid var(--edge);border-radius:var(--r);box-shadow:var(--sh-1),var(--hi);
   margin-bottom:16px;overflow:hidden;
 }
+/* 发布页折叠的高级选项卡 */
+details.card>summary{cursor:pointer;padding:14px 20px;font-size:13px;font-weight:600;color:var(--text-2);
+  list-style:none;display:flex;align-items:center;gap:8px;user-select:none}
+details.card>summary::-webkit-details-marker{display:none}
+details.card>summary::before{content:'▸';color:var(--text-3);transition:transform .18s}
+details.card[open]>summary::before{transform:rotate(90deg)}
+details.card>summary:hover{color:var(--accent-2)}
+details.card[open]>summary{border-bottom:1px solid var(--hair)}
+/* 发布页 DNS 设置 */
+.dnsbox{margin-top:18px;border-top:1px solid var(--hair);padding-top:14px}
+.dh-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.dh-head>span:first-child{font-size:13px;font-weight:600;color:var(--text-2)}
+.dh-head .dim{font-size:11.5px}
+.dh-sub{display:flex;align-items:center;gap:10px;margin:16px 0 8px}
+.dh-sub>span:first-child{font-size:12.5px;font-weight:560;color:var(--text-2)}
+.dh-sub .btn{margin-left:auto}
+.dh-tip{font-size:11.5px;line-height:1.7;margin-top:10px}
+/* 发布页静态托管导出 */
+.exp-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:12px}
+.exp-row .dim{font-size:11.5px;line-height:1.6}
+.efrow{display:grid;grid-template-columns:minmax(120px,.8fr) minmax(0,1.6fr) 34px;
+  gap:8px;align-items:center;padding:3px 0}
+.efrow .fn{font-size:11.5px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  color:var(--text-2);word-break:break-all}
+.efrow .fu{font-size:11.5px;color:var(--text-3);word-break:break-all;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media (max-width:820px){
+  .efrow{grid-template-columns:minmax(0,1fr) 34px;grid-template-areas:"fn fn" "fu cp"}
+  .efrow .fn{grid-area:fn}
+  .efrow .fu{grid-area:fu;white-space:normal}
+  .efrow .btn{grid-area:cp}
+}
+.dhrow{display:grid;grid-template-columns:minmax(0,1.5fr) 104px minmax(0,1fr) 34px;
+  gap:8px;align-items:center;padding:4px 0}
 .card-head{display:flex;align-items:center;gap:10px;padding:15px 20px;
   border-bottom:1px solid var(--hair);flex-wrap:wrap}
 .card-head h2{font-size:13.5px;font-weight:620;letter-spacing:-.15px}
@@ -391,41 +440,25 @@ details.adv .grid{margin-top:14px}
 .section-title .line{flex:1;height:1px;background:var(--hair)}
 .section-title .n{font-size:12px;color:var(--text-3)}
 
-/* ============================ group cards（Surge 风格） ============================ */
-.ggrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:12px}
-.gcard{
-  background:rgba(255,255,255,.82);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
-  border:1px solid var(--edge);border-radius:12px;box-shadow:var(--sh-1);
-  transition:box-shadow .22s,border-color .22s;display:flex;flex-direction:column;min-width:0;
-}
-.gcard:hover{box-shadow:var(--sh-2);border-color:rgba(0,122,255,.22)}
-.gcard-h{display:flex;align-items:center;gap:8px;padding:13px 16px 0;cursor:pointer;
-  user-select:none}
-.gcard-h:hover .gname{color:var(--accent-2)}
+/* ============================ group cards（与节点卡同尺寸的小卡片） ============================ */
+.ggrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px}
+.gcard{background:rgba(255,255,255,.72);border:1px solid var(--hair);
+  border-radius:10px;padding:9px 12px;cursor:pointer;min-width:0;
+  transition:border-color .18s,box-shadow .18s}
+.gcard:hover{border-color:rgba(0,122,255,.25);box-shadow:0 2px 8px rgba(20,30,60,.06)}
 .gname{font-size:14px;font-weight:600;letter-spacing:-.2px}
-.gstrat{margin-left:auto;font-size:11px;color:var(--text-3);letter-spacing:.02em;
-  white-space:nowrap}
 .gchev{flex:0 0 14px;color:var(--text-3);display:flex;align-items:center;
   transition:transform .2s}
-.gcard.col .gchev{transform:rotate(-90deg)}
-.gsub{display:flex;align-items:center;gap:10px;padding:4px 16px 12px;
-  font-size:11.5px;color:var(--text-3);font-variant-numeric:tabular-nums}
-.gsub b{color:var(--text-2);font-weight:560}
-.gsub .gactions{margin-left:auto;display:flex;gap:2px;align-items:center}
-.gsub .gactions .btn{padding:0 6px;height:25px;font-size:11px;color:var(--text-3)}
-.gsub .gactions .btn:hover{color:var(--accent-2)}
-.gsub .gactions .btn.danger:hover{color:var(--danger)}
 /* 行内小图标按钮去框化：无边框无底色，悬停浮出淡色圆角，按压回缩 */
-.gsub .gactions .btn,.ncard-s .nops .btn{
+.gcard .nops .btn,.ncard-s .nops .btn{
   width:29px;height:29px;border:0;background:transparent;box-shadow:none;
   backdrop-filter:none;-webkit-backdrop-filter:none;border-radius:9px;color:var(--text-3)}
-.gsub .gactions .btn:hover,.ncard-s .nops .btn:hover{
+.gcard .nops .btn:hover,.ncard-s .nops .btn:hover{
   background:rgba(0,122,255,.09);color:var(--accent-2)}
-.gsub .gactions .btn.danger:hover,.ncard-s .nops .btn.danger:hover{
+.gcard .nops .btn.danger:hover,.ncard-s .nops .btn.danger:hover{
   background:rgba(255,59,48,.1);color:var(--danger)}
-.gsub .gactions .btn:active,.ncard-s .nops .btn:active{transform:scale(.86)}
-/* 展开后的节点行：Surge 式——名称居左，纯文本延迟居右，发丝线分隔 */
-.gcard-b{border-top:1px solid var(--hair);display:flex;flex-direction:column;flex:1}
+.gcard .nops .btn:active,.ncard-s .nops .btn:active{transform:scale(.86)}
+/* 分组详情弹框内的节点行：Surge 式——名称居左，纯文本延迟居右，发丝线分隔 */
 .srow{display:flex;align-items:center;gap:10px;padding:7px 16px;font-size:12.5px;
   border-bottom:1px solid var(--hair);min-width:0}
 .srow:nth-last-child(1){border-bottom:0}
@@ -435,12 +468,12 @@ details.adv .grid{margin-top:14px}
 .srow.more{color:var(--text-3);font-size:11.5px;cursor:default}
 .srow.more:hover{background:none}
 .gfoot{display:flex;align-items:center;gap:12px;padding:9px 16px;
-  border-top:1px solid var(--hair);background:rgba(255,255,255,.5);margin-top:auto}
+  border-top:1px solid var(--hair);background:rgba(255,255,255,.5);margin-top:8px}
 .gfoot .switch{font-size:11.5px}
 .gfoot .spacer{margin-left:auto}
 .gfoot .url-mini{height:26px}
 .url-mini{display:flex;align-items:center;gap:6px;max-width:100%;min-width:0;
-  background:none;border:0;border-radius:999px;
+  background:none;border:0;border-radius:999px;cursor:pointer;
   padding:0 4px 0 8px;height:26px;color:var(--text-3)}
 .url-mini svg{stroke:var(--text-3)}
 .url-mini code{font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--text-3);
@@ -469,6 +502,18 @@ details.adv .grid{margin-top:14px}
   overflow:hidden;text-overflow:ellipsis}
 .nsec .nscnt{font-size:11.5px;color:var(--text-3);white-space:nowrap}
 .nsec.col + .nsec .nsec-h{padding-top:12px}
+/* 来源分节标题右侧：刷新 / 删除订阅（悬停浮现，触屏常显），点击不触发折叠 */
+.nsec .nsops{margin-left:auto;display:flex;gap:2px;opacity:0;transition:opacity .18s}
+.nsec .nsec-h:hover .nsops{opacity:1}
+.nsec .nsops .btn.icon{width:26px;height:26px;color:var(--text-3)}
+.nsec .nsops .btn.icon:hover{color:var(--accent-2)}
+.nsec .nsurl{margin-left:10px;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  color:var(--text-3);font-size:11.5px;cursor:pointer;border-bottom:1px dashed transparent}
+.nsec .nsurl:hover{color:var(--accent-2);border-bottom-color:currentColor}
+.nsec .nserr{font-size:11.5px;color:var(--danger);white-space:nowrap}
+/* 刷新中的旋转动画 */
+@keyframes ssrot{to{transform:rotate(360deg)}}
+.btn.spinning svg{animation:ssrot .9s linear infinite}
 .ncard{background:rgba(255,255,255,.72);border:1px solid var(--hair);
   border-radius:10px;padding:9px 12px;transition:border-color .18s,box-shadow .18s}
 .ncard:hover{border-color:rgba(0,122,255,.25);box-shadow:0 2px 8px rgba(20,30,60,.06)}
@@ -482,25 +527,8 @@ details.adv .grid{margin-top:14px}
 .ncard-s .nops{display:flex;gap:2px;opacity:0;transition:opacity .16s;flex:0 0 auto}
 .ncard:hover .nops{opacity:1}
 
-/* ============================ table ============================ */
-.tbl-wrap{overflow-x:auto}
-table{width:100%;border-collapse:collapse}
-th{text-align:left;font-size:11px;font-weight:620;color:var(--text-3);letter-spacing:.07em;
-  text-transform:uppercase;padding:11px 20px;background:rgba(255,255,255,.3);
-  border-bottom:1px solid var(--hair);white-space:nowrap}
-td{padding:11px 20px;border-bottom:1px solid var(--hair);font-size:13px;vertical-align:middle;
-  color:var(--text-2)}
-tbody tr:last-child td{border-bottom:0}
-tbody tr{transition:background .14s}
-tbody tr:hover{background:rgba(255,255,255,.5)}
-.cell-main{font-weight:560;color:var(--text);display:flex;align-items:center;gap:7px;flex-wrap:wrap}
-.cell-sub{font-size:11.5px;color:var(--text-3);margin-top:3px}
 code.chip{background:rgba(60,60,67,.08);border:1px solid var(--hair);border-radius:6px;
   padding:2px 7px;font-size:11px;font-family:ui-monospace,Menlo,monospace;color:var(--text-2)}
-.cell-main code.chip{background:transparent;border-color:var(--hair-2);padding:1px 6px;
-  font-size:10.5px;color:var(--text-3);font-weight:400}
-.row-ops{display:flex;gap:6px;justify-content:flex-end;opacity:.4;transition:opacity .16s}
-tr:hover .row-ops{opacity:1}
 .nowrap{white-space:nowrap}
 .right{text-align:right}
 
@@ -654,7 +682,6 @@ dialog.wide .dlg-body{max-height:66vh}
   .content{padding:0 16px 50px}
   .page-head{position:static;background:none;backdrop-filter:none;margin:0 0 4px;padding:18px 0 14px}
   .card-body{padding:16px}
-  th,td{padding-left:14px;padding-right:14px}
 }
 /* ---------- 手机端（≤640px）：侧栏退场，底部标签栏 + 触屏优化 ---------- */
 .tabbar{display:none}
@@ -673,29 +700,37 @@ dialog.wide .dlg-body{max-height:66vh}
   .tabbar button svg{stroke:currentColor}
   .tabbar button.active{color:var(--accent)}
   .content{padding:0 14px calc(86px + env(safe-area-inset-bottom));max-width:100%}
-  .page-head{padding:14px 0 10px;gap:8px}
-  .page-head h1{font-size:17px}
+  .page-head{display:block;padding:16px 0 12px}
+  /* 第一行：大标题 + 圆形设置按钮（右对齐）；第二行：操作按钮全宽横滑 */
+  .ph-title{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .page-head h1{font-size:21px;font-weight:700;letter-spacing:-.4px}
   .page-desc{display:none}
-  /* 操作按钮收成一条可横滑的行，不再换行堆叠 */
-  .head-actions{flex-wrap:nowrap;overflow-x:auto;margin-left:0;gap:7px;
-    -webkit-overflow-scrolling:touch;scrollbar-width:none;padding:2px 2px 4px}
+  .mh-only{display:flex;flex:0 0 auto;width:34px;height:34px;border-radius:50%;
+    background:#fff;border:1px solid var(--hair);box-shadow:0 1px 2px rgba(16,24,40,.05);
+    align-items:center;justify-content:center;padding:0}
+  .mh-only:active{transform:scale(.92)}
+  .head-actions{flex-wrap:nowrap;overflow-x:auto;margin:12px -14px 0;gap:8px;
+    padding:2px 14px 4px;-webkit-overflow-scrolling:touch;scrollbar-width:none;
+    -webkit-mask-image:linear-gradient(90deg,#000 93%,transparent);
+    mask-image:linear-gradient(90deg,#000 93%,transparent)}
   .head-actions::-webkit-scrollbar{display:none}
-  .head-actions .btn{flex:0 0 auto;height:31px;padding:0 13px;font-size:12px;
-    box-shadow:0 1px 2px rgba(0,122,255,.2),0 4px 12px -7px rgba(0,122,255,.4),
-      inset 0 1px 0 rgba(255,255,255,.42)}
-  .head-actions .btn.ghost{box-shadow:0 1px 1px rgba(16,24,40,.04),var(--hi)}
-  .mh-only{display:flex;flex:0 0 auto;width:31px;height:31px}
-  .mh-only:active{transform:scale(.93)}
+  /* 手机上只保留一个主色按钮（每页第一个动作），其余统一白底轻量化 */
+  .head-actions .btn{flex:0 0 auto;height:32px;padding:0 14px;font-size:12.5px;
+    background:#fff;color:var(--text-2);border:1px solid var(--hair);
+    box-shadow:0 1px 2px rgba(16,24,40,.05)}
+  .head-actions .btn:first-child{background:var(--accent);color:#fff;
+    border-color:transparent;box-shadow:0 1px 3px rgba(0,122,255,.28)}
   .section-title{margin:20px 0 10px}
   .card-body{padding:14px}
   /* 节点池：小屏两列卡片，来源分节标题贴左右内边距 */
   .ngrid{grid-template-columns:repeat(auto-fill,minmax(146px,1fr));gap:7px;padding:0 14px 16px}
   .ncard{padding:8px 10px}
   .nfbar{padding:0 14px 12px}
+  /* 搜索框占满卡片头部剩余宽度，不被「添加节点」挤窄 */
+  .card-head .search{flex:1;min-width:0;max-width:none !important}
   .nsec .nsec-h{padding:10px 14px 8px}
   .nsec:first-child .nsec-h{padding-top:2px}
-  .gcard-h{padding:11px 14px 0}
-  .gsub{padding:4px 14px 10px}
+  .ggrid{grid-template-columns:repeat(auto-fill,minmax(146px,1fr))}
   .srow{padding:8px 14px}
   .gfoot{padding:9px 14px;flex-wrap:wrap}
   /* 弹框：占满小屏，纵向滚动 */
@@ -711,29 +746,20 @@ dialog.wide .dlg-body{max-height:66vh}
   .search input{font-size:16px !important}
   /* 触屏设备无 hover：节点卡操作按钮常显，加大触点 */
   .ncard-s .nops{opacity:1}
+  .nsec .nsops{opacity:1}
+  /* 手机头部空间紧，订阅地址不占行（看完整地址走「编辑订阅源」弹框） */
+  .nsec .nsurl{display:none}
   .btn.icon{width:32px;height:32px}
-  .gsub .gactions .btn{width:30px;height:30px}
-  /* 订阅表格 → 卡片列表：每行一张卡，字段带标签 */
-  #subTable{display:block}
-  #subTable thead{display:none}
-  #subTable tbody{display:block}
-  #subTable tr{display:block;background:rgba(255,255,255,.72);border:1px solid var(--hair);
-    border-radius:12px;margin:0 14px 10px;padding:3px 0}
-  #subTable td{display:flex;align-items:center;gap:10px;border:0;padding:7px 14px;text-align:left}
-  #subTable td[data-l]::before{content:attr(data-l);flex:0 0 64px;font-size:11px;color:var(--text-3)}
-  #subTable td:first-child{display:block;padding-bottom:2px}
-  #subTable td:first-child::before{display:none}
-  #subTable td[data-l="操作"]{justify-content:flex-end}
-  #subTable td[data-l="操作"]::before{display:none}
+  .gcard .nops .btn{width:30px;height:30px}
   /* 规则行控件在 16px 字号下的触控高度 */
   .rrow select,.rrow input[type=text]{height:34px}
-  .rrow>.ridx{line-height:36px}
+  .rrow>.ridx{line-height:34px}
   /* 卡片头部的长说明收起，只留标题 */
   .card-head .hint{display:none}
 }
 @media (hover:none) and (pointer:coarse){
   .ncard-s .nops{opacity:1}
-  .row-ops{opacity:.9}
+  .nsec .nsops{opacity:1}
   .rrow .rops{opacity:1}
   .ncard:hover{box-shadow:none}
 }
@@ -783,13 +809,13 @@ dialog.wide .dlg-body{max-height:66vh}
     </button>
     <nav class="nav">
       <div class="nav-label">配置</div>
-      <button class="active" data-tab="groups" onclick="switchTab('groups')" title="节点与分组">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.6"/><rect x="14" y="3" width="7" height="7" rx="1.6"/><rect x="3" y="14" width="7" height="7" rx="1.6"/><rect x="14" y="14" width="7" height="7" rx="1.6"/></svg>
-        <span class="nav-text">节点与分组</span><span class="count" id="navGroups">0</span>
+      <button class="active" data-tab="nodes" onclick="switchTab('nodes')" title="节点池">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/><path d="M7 7.5h.01M7 16.5h.01"/></svg>
+        <span class="nav-text">节点</span><span class="count" id="navNodes">0</span>
       </button>
-      <button data-tab="subs" onclick="switchTab('subs')" title="订阅聚合">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M4 20h16"/></svg>
-        <span class="nav-text">订阅聚合</span><span class="count" id="navSubs">0</span>
+      <button data-tab="groups" onclick="switchTab('groups')" title="订阅分组">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.6"/><rect x="14" y="3" width="7" height="7" rx="1.6"/><rect x="3" y="14" width="7" height="7" rx="1.6"/><rect x="14" y="14" width="7" height="7" rx="1.6"/></svg>
+        <span class="nav-text">分组与策略</span><span class="count" id="navGroups">0</span>
       </button>
       <button data-tab="rules" onclick="switchTab('rules')" title="规则">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>
@@ -819,31 +845,18 @@ dialog.wide .dlg-body{max-height:66vh}
 
   <main class="content">
     <div class="page-head">
-      <div>
-        <h1 id="pageTitle">分组与策略</h1>
-        <p class="page-desc" id="pageDesc"></p>
-      </div>
-      <div class="head-actions" id="headActions"></div>
+      <div class="ph-title">
+        <div>
+          <h1 id="pageTitle">分组与策略</h1>
+          <p class="page-desc" id="pageDesc"></p>
+        </div>
       <button class="btn ghost icon mh-only" onclick="openSettings()" title="自动测速 / 登录密码" aria-label="设置">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1-1.55 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.55-1 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34h0a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55h0a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87v0a1.7 1.7 0 0 0 1.55 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.55 1z"/></svg>
       </button>
+      </div>
+      <div class="head-actions" id="headActions"></div>
     </div>
-
-    <!-- ================= 节点与分组 ================= -->
-    <section id="tab-groups">
-      <div class="section-title">
-        <h2>订阅分组</h2>
-        <span class="n" id="groupCountNote"></span>
-        <span class="line"></span>
-      </div>
-      <div id="groupList"></div>
-      <div class="card" id="groupEmpty" style="display:none">
-        <div class="empty">
-          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round"><rect x="3" y="3" width="7" height="7" rx="1.6"/><rect x="14" y="3" width="7" height="7" rx="1.6"/><rect x="3" y="14" width="7" height="7" rx="1.6"/><rect x="14" y="14" width="7" height="7" rx="1.6"/></svg>
-          <div>还没有分组，点右上角「新建分组」创建第一个</div>
-        </div>
-      </div>
-
+    <section id="tab-nodes">
       <div class="section-title">
         <h2>节点池</h2>
         <span class="n" id="nodeSummary"></span>
@@ -864,29 +877,22 @@ dialog.wide .dlg-body{max-height:66vh}
         <div id="nodeGrid"></div>
         <div class="empty" id="nodeEmpty" style="display:none">
           <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/></svg>
-          <div>暂无节点，点上方「添加节点」手工添加，或在弹框里切换「链接粘贴导入」批量粘贴</div>
+          <div>暂无节点：点上方「添加订阅源」导入订阅，或「添加节点」手工添加、批量粘贴</div>
         </div>
       </div>
     </section>
 
-    <!-- ================= 订阅聚合 ================= -->
-    <section id="tab-subs" style="display:none">
-      <div class="card">
-        <div class="card-head">
-          <h2>订阅源</h2>
-          <span class="hint">刷新时按来源替换旧节点，不会重复堆积</span>
-          <div class="right" id="subSummary"></div>
-        </div>
-        <div class="tbl-wrap">
-          <table id="subTable"><thead><tr>
-            <th>名称 / 地址</th><th style="width:104px">节点</th>
-            <th style="width:22%">归入分组</th><th style="width:120px">状态</th>
-            <th style="width:150px"></th>
-          </tr></thead><tbody></tbody></table>
-        </div>
-        <div class="empty" id="subEmpty" style="display:none">
-          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M4 20h16"/></svg>
-          <div>还没有订阅源，点右上角「添加订阅源」添加第一个</div>
+    <section id="tab-groups" style="display:none">
+      <div class="section-title">
+        <h2>订阅分组</h2>
+        <span class="n" id="groupCountNote"></span>
+        <span class="line"></span>
+      </div>
+      <div id="groupList"></div>
+      <div class="card" id="groupEmpty" style="display:none">
+        <div class="empty">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round"><rect x="3" y="3" width="7" height="7" rx="1.6"/><rect x="14" y="3" width="7" height="7" rx="1.6"/><rect x="3" y="14" width="7" height="7" rx="1.6"/><rect x="14" y="14" width="7" height="7" rx="1.6"/></svg>
+          <div>还没有分组，点右上角「新建分组」创建第一个</div>
         </div>
       </div>
     </section>
@@ -958,26 +964,50 @@ dialog.wide .dlg-body{max-height:66vh}
     <section id="tab-publish" style="display:none">
       <div class="card">
         <div class="card-head">
-          <h2>Shadowrocket（iOS）适配</h2>
-          <span class="hint">用 iPhone 打开本页面后点按导入链接，或把链接复制到手机</span>
+          <h2>Shadowrocket 订阅</h2>
+          <span class="hint">iPhone 用 Safari 打开本页点「导入」直达；其他客户端复制链接手动添加</span>
         </div>
         <div class="card-body">
+          <div class="prow">
+            <div class="prow-main">
+              <div class="prow-title">
+                <span class="gname" style="font-size:13.5px">全部节点</span>
+                <span class="gmeta">节点池聚合订阅</span>
+              </div>
+              <div class="prow-url"><code id="pubSubUrl"></code></div>
+            </div>
+            <div class="prow-ops">
+              <a class="btn sm" id="pubAllImport" href="#" onclick="return srClick(event)">导入</a>
+              <button class="btn ghost sm" onclick="copyBtn(this, state.publish.sub_url)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg>复制链接</button>
+            </div>
+          </div>
+          <div id="pubGroupCard"></div>
+        </div>
+        <div class="card-foot">
+          <button class="btn danger sm" onclick="rotateToken()">重置 Token</button>
+          <span class="dim">订阅链接包含节点信息，请勿公开分享；重置后旧链接立即失效，客户端需重新添加</span>
+        </div>
+      </div>
+
+      <details class="card" id="pubAdv">
+        <summary>高级：完整配置（分组 + 分流规则）、参数与使用说明</summary>
+        <div class="card-body">
           <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-            <a class="btn" id="srImportBtn" href="#" onclick="toast('请在 iPhone 上用 Safari 打开本页面后点按');return false;">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M4 21h16"/></svg>
-              一键导入订阅（节点列表）
-            </a>
-            <span class="dim">等价于 Shadowrocket「首页 → + → 类型 Subscribe → 粘贴订阅链接」，刷新订阅即同步</span>
+            <a class="btn ghost" id="srConfBtn" href="#" onclick="return srClick(event)">一键导入完整配置（节点 + 分组 + 规则）</a>
+            <span class="dim">Shadowrocket 底部「配置」→ + 导入；更新订阅即同步</span>
           </div>
-          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:14px">
-            <a class="btn ghost" id="srConfBtn" href="#" onclick="toast('请在 iPhone 上用 Safari 打开本页面后点按');return false;">
-              一键导入配置（节点 + 分组 + 规则）
-            </a>
-            <span class="dim">完整配置文件：含策略组与分流规则，更新订阅即更新</span>
-          </div>
-          <div class="urlrow" style="margin-top:16px">
+          <div class="urlrow" style="margin-top:14px">
             <span class="tag">配置</span><span class="u" id="pubConfUrl"></span>
             <button class="btn ghost sm" onclick="copyBtn(this, state.publish.conf_url)">复制</button>
+          </div>
+          <div class="urlrow">
+            <span class="tag">规则</span><span class="u" id="pubAclUrl"></span>
+            <button class="btn ghost sm" onclick="copyBtn(this, state.publish.acl_url)">复制</button>
+          </div>
+          <div class="urlrow">
+            <span class="tag">索引</span><span class="u" id="groupsJsonUrl"></span>
+            <a class="btn ghost sm" id="groupsJsonLink" href="#" target="_blank">打开</a>
+            <button class="btn ghost sm" onclick="openPreview(state.publish.raw_url,'全部节点')">预览订阅内容</button>
           </div>
           <div class="grid" style="margin-top:16px">
             <div class="field"><label>默认出口（[Rule] FINAL 指向的分组）</label>
@@ -991,66 +1021,75 @@ dialog.wide .dlg-body{max-height:66vh}
             <div class="field"><label>切换容差（毫秒）</label>
               <input type="number" id="srTolerance" onchange="saveSrSettings()"></div>
           </div>
-        </div>
-        <div class="card-foot">策略映射：延迟优先 → url-test · 故障转移 → fallback · 轮询/随机 → load-balance · 手动顺序 → select；分流规则来自「规则」页的 Surge 规则；节点行按各协议语法生成（vless / vmess / trojan / hysteria2 / tuic / ss / ssr / anytls / socks5 / http）</div>
-      </div>
-
-      <div class="card">
-        <div class="card-head">
-          <h2>全部节点订阅</h2>
-          <span class="hint">节点池中所有节点的聚合订阅</span>
-          <div class="right">
-            <a class="btn ghost sm" id="groupsJsonLink" href="#" target="_blank">分组索引 JSON</a>
-            <button class="btn ghost sm" onclick="openPreview(state.publish.raw_url,'全部节点')">预览内容</button>
-          </div>
-        </div>
-        <div class="card-body">
-          <div class="urlrow">
-            <span class="tag">订阅</span><span class="u" id="pubSubUrl"></span>
-            <button class="btn ghost sm" onclick="copyBtn(this, state.publish.sub_url)">复制</button>
-          </div>
-          <div class="urlrow">
-            <span class="tag">规则</span><span class="u" id="pubAclUrl"></span>
-            <button class="btn ghost sm" onclick="copyBtn(this, state.publish.acl_url)">复制</button>
-          </div>
-        </div>
-        <div class="card-foot">
-          <button class="btn danger sm" onclick="rotateToken()">重置 Token</button>
-          <span class="dim">重置后所有旧链接立即失效，客户端需重新添加</span>
-        </div>
-      </div>
-
-      <div class="section-title">
-        <h2>分组订阅链接</h2>
-        <span class="n">客户端中每个分组即一个独立节点组</span>
-        <span class="line"></span>
-      </div>
-      <div class="card" id="pubGroupCard"></div>
-
-      <div class="card">
-        <div class="card-head"><h2>客户端使用方法</h2></div>
-        <div class="card-body">
-          <ol class="steps">
-            <li><b>iOS · Shadowrocket（推荐）</b> — 在 iPhone 上打开本页，点上方「一键导入」。要分组与分流规则，请导入「配置文件」：Shadowrocket → 底部「配置」→ 右上角 + → 粘贴配置链接。</li>
-            <li><b>订阅自动更新</b> — 设置 → 服务器订阅 → 打开「打开时更新」；配置文件方式则在「配置」页左滑刷新。改动本页配置后，客户端刷新即同步。</li>
+          <ol class="steps" style="margin-top:16px">
+            <li><b>订阅自动更新</b> — Shadowrocket → 设置 → 服务器订阅 → 打开「打开时更新」；配置文件方式在「配置」页左滑刷新。改动本页配置后，客户端刷新即同步。</li>
             <li><b>macOS · ShadowsocksX-NG</b> — 服务器 → 订阅设置 → 添加订阅链接并勾选自动更新；规则链接（rules.acl）填入「编辑 ACL」。</li>
             <li><b>备份 / 自建静态站</b> — <code class="chip">output/</code> 目录已生成 <code class="chip">subscription.b64</code>、<code class="chip">shadowrocket.conf</code> 与 <code class="chip">group-*.b64</code>，可直接部署到任意静态服务器。</li>
           </ol>
+
+          <div class="dnsbox">
+            <div class="dh-head">
+              <span>DNS 设置</span>
+              <span class="dim">写入配置文件的 [General] 与 [Host] 段</span>
+            </div>
+            <div class="grid">
+              <div class="field"><label>全局 DNS（dns-server）</label>
+                <input type="text" id="dnsServers" onchange="saveDns()"
+                  placeholder="system, 223.5.5.5, 119.29.29.29"></div>
+              <div class="field"><label>直连 DNS（direct-dns-server，可空）</label>
+                <input type="text" id="dnsDirect" onchange="saveDns()" placeholder="留空则跟随全局 DNS"></div>
+              <div class="field"><label>兜底 DNS（fallback-dns-server，可空）</label>
+                <input type="text" id="dnsFallback" onchange="saveDns()" placeholder="查询失败或超 2 秒时回退"></div>
+              <div class="field"><label>对代理连接生效</label>
+                <label class="switch" style="height:36px"><input type="checkbox" id="dnsLocalProxy"
+                  onchange="saveDns()">use-local-host-item-for-proxy</label></div>
+            </div>
+            <div class="dh-sub">
+              <span>指定域名的 DNS / 固定解析</span>
+              <button class="btn ghost sm" onclick="addDnsRow()">添加域名</button>
+            </div>
+            <div id="dnsHosts"></div>
+            <p class="dim dh-tip">
+              支持 <code class="chip">system</code>、普通 IP、<code class="chip">https://dns.alidns.com/dns-query</code>（DoH）、
+              <code class="chip">tls://223.5.5.5</code>（DoT）、<code class="chip">quic://</code>、<code class="chip">h3://</code>；
+              末尾加 <code class="chip">#proxy</code> 让解析走代理。域名支持 <code class="chip">*.example.com</code> 通配。
+              注意：代理类域名默认在节点侧解析，要让本地设置对它生效请打开上面的开关。</p>
+          </div>
+
+          <div class="dnsbox" id="pubExport">
+            <div class="dh-head">
+              <span>静态托管（放到公网）</span>
+              <span class="dim">把订阅产物传到 GitHub Pages / Cloudflare Pages / 对象存储等任意静态托管，手机在蜂窝网络下也能订阅，不依赖本机开机</span>
+            </div>
+            <div class="exp-row">
+              <a class="btn" href="/api/export.zip" download>下载发布包（.zip）</a>
+              <span class="dim">解压后把里面所有文件原样上传；包内自带手机友好的 index.html，手机打开它就能一键导入</span>
+            </div>
+            <div class="field" style="margin-top:14px">
+              <label>发布基地址（可选，填了才能预览上传后的完整链接）</label>
+              <input type="text" id="expBase" placeholder="如 https://user.github.io/sr/"
+                onchange="saveExportBase(this.value)">
+            </div>
+            <div id="expFiles" style="margin-top:6px"></div>
+            <p class="dim dh-tip">
+              链接就是节点凭据，<b>不要传到公开仓库</b>；节点或规则改动后需重新下载并覆盖上传。
+              落地页里的链接按打开页面时的域名自动拼接，换域名、换目录都不用重新导出。</p>
+          </div>
         </div>
-        <div class="card-foot">订阅链接包含节点信息，请勿公开分享；若泄露请点「重置 Token」立即作废旧链接</div>
-      </div>
+        <div class="card-foot">策略映射：延迟优先 → url-test · 故障转移 → fallback · 轮询/随机 → load-balance · 手动顺序 → select；分流规则来自「规则」页的 Surge 规则</div>
+      </details>
     </section>
   </main>
 
   <!-- 手机端底部标签栏（≤640px 显示） -->
   <nav class="tabbar" aria-label="页面切换">
-    <button data-tab="groups" onclick="switchTab('groups')">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.6"/><rect x="14" y="3" width="7" height="7" rx="1.6"/><rect x="3" y="14" width="7" height="7" rx="1.6"/><rect x="14" y="14" width="7" height="7" rx="1.6"/></svg>
+    <button data-tab="nodes" onclick="switchTab('nodes')">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/><path d="M7 7.5h.01M7 16.5h.01"/></svg>
       <span>节点</span>
     </button>
-    <button data-tab="subs" onclick="switchTab('subs')">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M4 20h16"/></svg>
-      <span>订阅</span>
+    <button data-tab="groups" onclick="switchTab('groups')">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.6"/><rect x="14" y="3" width="7" height="7" rx="1.6"/><rect x="3" y="14" width="7" height="7" rx="1.6"/><rect x="14" y="14" width="7" height="7" rx="1.6"/></svg>
+      <span>分组</span>
     </button>
     <button data-tab="rules" onclick="switchTab('rules')">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>
@@ -1082,6 +1121,44 @@ dialog.wide .dlg-body{max-height:66vh}
   <div class="dlg-foot">
     <span class="spacer"></span>
     <button class="btn" onclick="closeDlg('previewDlg')">关闭</button>
+  </div>
+</dialog>
+
+<dialog id="copyFallbackDlg">
+  <div class="dlg-head"><h3>手动复制</h3>
+    <p>当前环境（局域网 http 访问）不允许脚本写入剪贴板，请长按 / 右键下方文本全选后复制</p></div>
+  <div class="dlg-body">
+    <textarea id="copyFallbackText" readonly style="min-height:96px;font-size:12.5px"></textarea>
+  </div>
+  <div class="dlg-foot">
+    <button class="btn ghost" onclick="selCopyFallback()">全选</button>
+    <span class="spacer"></span>
+    <button class="btn" onclick="closeDlg('copyFallbackDlg')">完成</button>
+  </div>
+</dialog>
+
+<dialog id="groupViewDlg">
+  <div class="dlg-head"><h3 id="gvTitle">分组</h3>
+    <p id="gvMeta"></p></div>
+  <div class="dlg-body" style="padding:0 4px">
+    <div class="url-mini" id="gvUrl" title="点击复制该分组的订阅链接" style="margin:2px 12px 8px">
+      <span id="gvLinkIco" style="display:flex">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7 0l2-2a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-2 2a5 5 0 0 0 7 7l1-1"/></svg>
+      </span>
+      <code id="gvUrlCode"></code>
+    </div>
+    <div id="gvRows"></div>
+    <div class="gfoot">
+      <label class="switch"><input type="checkbox" id="gvSkip"
+        onchange="updateGroup(state.gvGroup, {skip_dead: this.checked})">自动剔除不可用</label>
+    </div>
+  </div>
+  <div class="dlg-foot">
+    <button class="btn ghost" id="gvMembersBtn" onclick="gvMembers()">成员</button>
+    <button class="btn ghost" id="gvEdit" onclick="gvEdit()">编辑</button>
+    <button class="btn ghost" id="gvDel" onclick="gvDel()" style="color:var(--danger)">删除</button>
+    <span class="spacer"></span>
+    <button class="btn" onclick="closeDlg('groupViewDlg')">关闭</button>
   </div>
 </dialog>
 
@@ -1180,8 +1257,8 @@ dialog.wide .dlg-body{max-height:66vh}
 </dialog>
 
 <dialog id="subDlg">
-  <div class="dlg-head"><h3>添加订阅源</h3>
-    <p>支持返回 ss:// 列表或 base64 的订阅地址；添加后立即抓取一次节点</p></div>
+  <div class="dlg-head"><h3 id="s_dlg_title">添加订阅源</h3>
+    <p id="s_dlg_desc">支持返回 ss:// 列表或 base64 的订阅地址；添加后立即抓取一次节点</p></div>
   <div class="dlg-body">
     <div class="field">
       <label>名称</label>
@@ -1199,7 +1276,7 @@ dialog.wide .dlg-body{max-height:66vh}
   <div class="dlg-foot">
     <span class="spacer"></span>
     <button class="btn ghost" onclick="closeDlg('subDlg')">取消</button>
-    <button class="btn" onclick="addSub()">添加并抓取</button>
+    <button class="btn" id="s_save_btn" onclick="saveSub()">添加并抓取</button>
   </div>
 </dialog>
 
@@ -1344,53 +1421,45 @@ dialog.wide .dlg-body{max-height:66vh}
 <script>
 const $ = id => document.getElementById(id);
 const state = {nodes: [], subs: [], groups: [], strategies: [], settings: {},
-  publish: {}, editingGroup: null, subNames: {}, tab: 'groups',
+  publish: {}, editingGroup: null, subNames: {}, tab: 'nodes',
   types: [], typeLabels: {}, nodeFilter: '',
-  collapsedGroups: null, memberCollapsed: null,
+  memberCollapsed: null,
   authEnabled: true, hasPassword: false,
   ruleRows: [], ruleMode2: 'form', ruleTypes: {}, ruleActions: [],
   rulesSaved: '', memberMode: 'edit', newMembers: []};
 
-/* 折叠状态（分组卡片 / 节点池来源分节 / 穿梭框来源分组）持久化到 localStorage */
+/* 折叠状态（节点池来源分节 / 穿梭框来源分组）持久化到 localStorage */
 function collapsedSet(which) {
-  const key = which === 'groups' ? 'ss_gcollapsed'
-    : which === 'sources' ? 'ss_scollapsed' : 'ss_mcollapsed';
-  const field = which === 'groups' ? 'collapsedGroups'
-    : which === 'sources' ? 'collapsedSources' : 'memberCollapsed';
+  const key = which === 'sources' ? 'ss_scollapsed' : 'ss_mcollapsed';
+  const field = which === 'sources' ? 'collapsedSources' : 'memberCollapsed';
   if (!state[field]) {
-    const raw = localStorage.getItem(key);
-    if (raw === null && which === 'groups') {
-      state[field] = new Set(state.groups.map(g => g.id));   // 首次访问：分组卡片默认全部折叠
-    } else {
-      let arr = [];
-      try { arr = JSON.parse(raw || '[]'); } catch (e) { arr = []; }
-      state[field] = new Set(arr);   // 来源分节首次访问默认全部展开
-    }
+    let arr = [];
+    try { arr = JSON.parse(localStorage.getItem(key) || '[]'); } catch (e) { arr = []; }
+    state[field] = new Set(arr);   // 首次访问默认全部展开
   }
   return state[field];
 }
 function persistCollapsed(which) {
-  const key = which === 'groups' ? 'ss_gcollapsed'
-    : which === 'sources' ? 'ss_scollapsed' : 'ss_mcollapsed';
+  const key = which === 'sources' ? 'ss_scollapsed' : 'ss_mcollapsed';
   const s = collapsedSet(which);
   try { localStorage.setItem(key, JSON.stringify([...s])); } catch (e) {}
 }
 
 const TAB_META = {
-  groups:  ['节点与分组', '左边是分组卡片（可折叠展开看组内节点），下面是节点池；节点与连通性一屏看完'],
-  subs:    ['订阅聚合', '添加多个远程订阅源，一键抓取并合并节点，刷新时按来源替换'],
+  nodes:   ['节点', '节点池按订阅来源分节可折叠；支持搜索、按协议筛选，测速与订阅刷新都在这里'],
+  groups:  ['分组与策略', '分组是节点的集合，点卡片弹框查看组内节点与订阅链接；策略与容差在编辑分组里设置'],
   rules:   ['规则', 'Surge 风格分流规则，随配置文件一起下发给 Shadowrocket'],
-  publish: ['发布订阅', '一键导入 Shadowrocket：可导入节点订阅，也可导入含分组与规则的完整配置'],
+  publish: ['发布订阅', '点「导入」直达 Shadowrocket，或复制订阅链接手动添加；完整配置与参数收在下方高级选项'],
 };
 const HEAD_ACTIONS = {
-  groups: [{label: '测速', fn: 'runSpeedTest()',
+  nodes: [{label: '测速', fn: 'runSpeedTest()',
             title: '用内置 mihomo 内核对每个节点做真实协议握手 + 代理请求，'
                  + '结论与客户端一致；内核不支持的协议自动降级为端口探测。80 个节点约需 40 秒'},
-           {label: '新建分组', fn: 'openGroupDlg()'},
-           {label: '全部展开', fn: 'toggleAllGroupCards()', id: 'btnCollapseAll', ghost: true},
+           {label: '添加订阅源', fn: 'openSubDlg()'},
            {label: '刷新订阅', fn: 'refreshAllSubs()', ghost: true}],
-  subs:  [{label: '添加订阅源', fn: 'openSubDlg()'},
-          {label: '刷新全部订阅', fn: 'refreshAllSubs()', ghost: true}],
+  groups: [{label: '测速', fn: 'runSpeedTest()',
+            title: '对组内节点做一次真实协议测速，结果同步到节点池'},
+           {label: '新建分组', fn: 'openGroupDlg()'}],
   rules: [{label: '新增规则', fn: 'openRuleDlg()'}],
 };
 
@@ -1448,17 +1517,47 @@ async function api(path, opts = {}) {
 }
 const esc = s => { const d = document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML; };
 const shorten = (s, n) => s && s.length > n ? s.slice(0, n) + '…' : s;
-function copyText(t) {
-  if (!t) return toast('暂无内容', false);
-  navigator.clipboard.writeText(t).then(() => toast('已复制到剪贴板'))
-    .catch(() => { const i = document.createElement('input'); i.value = t;
-      document.body.appendChild(i); i.select(); document.execCommand('copy'); i.remove();
-      toast('已复制'); });
+/* 复制到剪贴板。
+   注意：通过局域网 http://192.168.x.x 打开时属非安全上下文，navigator.clipboard 是
+   undefined，直接调用会抛 TypeError（按钮「点了没反应」的元凶）——所以必须先探测，
+   再回退到 execCommand，都失败就弹手动复制框。 */
+function legacyCopy(t) {
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = t;
+    ta.setAttribute('readonly', '');
+    ta.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;padding:0;border:0;opacity:0;';
+    document.body.appendChild(ta);
+    ta.focus(); ta.select();
+    ta.setSelectionRange(0, t.length);
+    const ok = document.execCommand('copy');
+    ta.remove();
+    return ok;
+  } catch (e) { return false; }
 }
+function copyText(t) {
+  if (!t) { toast('暂无内容', false); return false; }
+  if (window.isSecureContext && navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(t)
+      .then(() => toast('已复制到剪贴板'))
+      .catch(() => { legacyCopy(t) ? toast('已复制到剪贴板') : openCopyFallback(t); });
+    return true;
+  }
+  if (legacyCopy(t)) { toast('已复制到剪贴板'); return true; }
+  openCopyFallback(t);
+  return false;
+}
+function openCopyFallback(t) {
+  const el = $('copyFallbackText');
+  el.value = t;
+  $('copyFallbackDlg').showModal();
+  setTimeout(() => { el.focus(); el.select(); }, 60);
+}
+function selCopyFallback() { const el = $('copyFallbackText'); el.focus(); el.select(); }
 function copyBtn(btn, text) {
   if (!text) return toast('暂无内容', false);
-  copyText(text);
-  if (!btn || btn.dataset.done) return;
+  const ok = copyText(text);
+  if (!ok || !btn || btn.dataset.done) return;
   const html = btn.innerHTML;
   btn.dataset.done = '1';
   btn.innerHTML = SVG.check + '已复制';
@@ -1575,13 +1674,14 @@ function switchTab(name) {
   state.tab = name;
   document.querySelectorAll('.nav button, .tabbar button').forEach(b =>
     b.classList.toggle('active', b.dataset.tab === name));
-  ['groups','subs','rules','publish'].forEach(t =>
+  ['nodes','groups','rules','publish'].forEach(t =>
     $('tab-' + t).style.display = t === name ? '' : 'none');
   $('pageTitle').textContent = TAB_META[name][0];
   $('pageDesc').textContent = TAB_META[name][1];
   $('headActions').innerHTML = (HEAD_ACTIONS[name] || []).map(a =>
     `<button class="btn ${a.ghost ? 'ghost' : ''}"${a.id ? ` id="${a.id}"` : ''}${a.title ? ` title="${esc(a.title)}"` : ''} onclick="${a.fn}">${a.label}</button>`).join('');
   if (name === 'publish') loadPublish();
+  if (name === 'nodes') renderNodeTable();
   if (name === 'groups') loadGroups();
   // 分组有变动时，刷新规则表单「动作」下拉里的策略组选项（不含未保存的表单改动就跳过）
   if (name === 'rules') {
@@ -1608,15 +1708,15 @@ async function loadAll() {
   await loadGroups();     // 先拿到分组，规则表单的「动作」下拉才能列出策略组
   await Promise.all([loadNodes(), loadRules(), loadSettings(), loadPublish()]);
   renderGroupSelectors();
-  switchTab('groups');
+  switchTab('nodes');
 }
 
 function updateKpis() {
   const nodes = state.nodes;
+  $('navNodes').textContent = nodes.length;
   $('navGroups').textContent = state.groups.length;
-  $('navSubs').textContent = state.subs.length;
   $('sideSummary').innerHTML = `<b>${nodes.length}</b>&nbsp;节点 ·&nbsp;` +
-    `<b>${state.groups.length}</b>&nbsp;分组`;
+    `<b>${state.groups.length}</b>&nbsp;分组 ·&nbsp;<b>${state.subs.length}</b>&nbsp;订阅`;
 }
 
 /* ---------------- nodes ---------------- */
@@ -1709,6 +1809,16 @@ function renderNodeTable() {
         <span class="nchev">${CHEV}</span>
         <span class="nsname">${esc(label)}</span>
         <span class="nscnt"><span class="ghealth">${nodes.length} 节点 · ${health}</span></span>
+        ${src === 'custom' ? '' : (() => {
+          const sub = state.subs.find(s => s.id === src);
+          return `${sub && sub.error ? '<span class="nserr" title="' + esc(sub.error) + '">抓取失败</span>' : ''}
+        ${sub ? `<span class="nsurl" data-url="${esc(sub.url)}" title="${esc(sub.url)} — 点击复制完整地址"
+          onclick="event.stopPropagation(); copyText(this.dataset.url)">${esc(sub.url)}</span>` : ''}
+        <span class="nsops" onclick="event.stopPropagation()">
+          ${iconBtn('refresh', `refreshSub('${src}', this)`, '刷新该订阅')}
+          ${iconBtn('edit', `openSubDlg('${src}')`, '编辑订阅源（改地址 / 名称 / 归组）')}
+          ${iconBtn('trash', `delSub('${src}')`, '删除该订阅（连同其节点）')}
+        </span>`; })()}
       </div>
       ${isCol ? '' : `<div class="ngrid">${cards}</div>`}
     </div>`;
@@ -1936,41 +2046,23 @@ async function loadSubs() {
   state.subNames = {};
   d.subscriptions.forEach(s => state.subNames[s.id] = s.name);
   if (!state.groups.length) state.groups = d.groups;
-  renderSubTable();
   updateKpis();
 }
-function renderSubTable() {
-  const rows = state.subs.map(s => {
-    const gs = state.groups.filter(g => (g.auto_sources || []).includes(s.id))
-      .map(g => `<span class="meta-tag acc">${esc(g.name)}</span>`).join(' ') || '<span class="dim">—</span>';
-    const status = s.error
-      ? '<span class="pill bad">抓取失败</span>'
-      : `<span class="dim">${s.last_update || '尚未抓取'}</span>`;
-    return `<tr>
-      <td data-l="名称 / 地址">
-        <div class="cell-main">${esc(s.name)}</div>
-        <div class="cell-sub mono">${esc(shorten(s.url, 58))}</div>
-      </td>
-      <td class="num dim" data-l="节点">${s.node_count} 节点</td>
-      <td data-l="归入分组">${gs}</td>
-      <td data-l="状态">${status}</td>
-      <td data-l="操作"><div class="row-ops">
-        <button class="btn ghost sm" onclick="refreshSub('${s.id}', this)">刷新</button>
-        ${iconBtn('trash', `delSub('${s.id}')`, '删除订阅源')}
-      </div></td></tr>`;
-  }).join('');
-  $('subTable').querySelector('tbody').innerHTML = rows;
-  const total = state.subs.reduce((a, s) => a + (s.node_count || 0), 0);
-  const failed = state.subs.filter(s => s.error).length;
-  $('subSummary').innerHTML = state.subs.length
-    ? `<span class="dim">共 ${state.subs.length} 个来源 · ${total} 个节点</span>` +
-      (failed ? ` <span class="pill bad">${failed} 个异常</span>` : '')
-    : '';
-  $('subEmpty').style.display = state.subs.length ? 'none' : 'block';
-  $('subTable').style.display = state.subs.length ? '' : 'none';
-}
-async function addSub() {
-  const body = {name: $('s_name').value, url: $('s_url').value, auto_group: $('s_group').value};
+async function saveSub() {
+  const body = {name: $('s_name').value, url: $('s_url').value.trim(), auto_group: $('s_group').value};
+  if (state.editingSub) {
+    /* 编辑模式：PUT 保存；订阅地址变了则自动重新抓取 */
+    try {
+      const r = await api(`/api/subs/${state.editingSub}`, {method: 'PUT', body});
+      closeDlg('subDlg');
+      state.editingSub = null;
+      toast(r.url_changed ? '已保存，正在重新抓取…' : '订阅已保存');
+      if (r.url_changed) await api(`/api/subs/${r.subscription.id}/refresh`, {method: 'POST'});
+      await loadSubs(); await loadGroups(); await loadNodes(); await loadPublish();
+      renderGroupSelectors();
+    } catch (e) { toast(e.error || '保存失败', false); }
+    return;
+  }
   if (!body.url) return toast('请填写订阅地址', false);
   try {
     const r = await api('/api/subs', {method: 'POST', body});
@@ -1983,23 +2075,30 @@ async function addSub() {
     renderGroupSelectors();
   } catch (e) { toast(e.error || '添加失败', false); }
 }
-/* 按钮触发弹框：添加订阅源 */
-function openSubDlg() {
-  $('s_name').value = ''; $('s_url').value = ''; $('s_group').value = '';
+/* 按钮触发弹框：添加订阅源（传 subId 即编辑该订阅） */
+function openSubDlg(subId) {
+  state.editingSub = subId || null;
+  const sub = subId ? state.subs.find(s => s.id === subId) : null;
+  $('s_dlg_title').textContent = sub ? '编辑订阅源' : '添加订阅源';
+  $('s_dlg_desc').textContent = sub
+    ? '修改订阅地址后保存会自动重新抓取节点；改名会同步更新已有节点的来源名'
+    : '支持返回 ss:// 列表或 base64 的订阅地址；添加后立即抓取一次节点';
+  $('s_save_btn').textContent = sub ? '保存' : '添加并抓取';
+  $('s_name').value = sub ? sub.name : '';
+  $('s_url').value = sub ? sub.url : '';
   renderGroupSelectors();
+  if (sub) $('s_group').value = (state.groups.find(g => (g.auto_sources || []).includes(subId)) || {}).id || '';
   $('subDlg').showModal();
   setTimeout(() => $('s_url').focus(), 30);
 }
 async function refreshSub(id, btn) {
-  const html = btn.innerHTML;
-  btn.innerHTML = SVG.refresh + '刷新中';
-  btn.disabled = true;
+  if (btn) { btn.classList.add('spinning'); btn.disabled = true; }
   try {
     const r = await api(`/api/subs/${id}/refresh`, {method: 'POST'});
     toast(`抓取成功：${r.node_count} 个节点`);
     loadSubs(); loadNodes(); loadGroups(); loadPublish();
   } catch (e) { toast(e.error || '刷新失败', false); loadSubs(); }
-  btn.innerHTML = html; btn.disabled = false;
+  if (btn) { btn.classList.remove('spinning'); btn.disabled = false; }
 }
 async function refreshAllSubs() {
   if (!state.subs.length) return toast('暂无订阅源', false);
@@ -2039,20 +2138,6 @@ function groupNodes(g) {
   return state.nodes.filter(n => ids.has(n.id))
     .sort((a, b) => (order[a.id] ?? 1e6) - (order[b.id] ?? 1e6));
 }
-function toggleGroupCard(gid, force) {
-  const s = collapsedSet('groups');
-  const collapse = (force === undefined) ? !s.has(gid) : !force;
-  if (collapse) s.add(gid); else s.delete(gid);
-  persistCollapsed('groups');
-  renderGroups();
-}
-function toggleAllGroupCards(force) {
-  const s = collapsedSet('groups');
-  const expand = force !== undefined ? force : s.size > 0;   // 有折叠就全展开，否则全收起
-  state.groups.forEach(g => expand ? s.delete(g.id) : s.add(g.id));
-  persistCollapsed('groups');
-  renderGroups();
-}
 const CHEV = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>';
 const TICK = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>';
 function renderGroups() {
@@ -2069,53 +2154,63 @@ function renderGroups() {
   }
   $('groupEmpty').style.display = 'none';
   box.classList.add('ggrid');
-  const collapsed = collapsedSet('groups');
-  const tog = $('btnCollapseAll');
-  if (tog) tog.textContent = collapsed.size ? '全部展开' : '全部折叠';
   box.innerHTML = state.groups.map(g => {
     const strat = state.strategies.find(s => s.key === g.strategy) || {};
-    const pub = (state.publish.groups || []).find(x => x.id === g.id) || {};
-    const url = pub.sub_url || '';
     const nodes = groupNodes(g);
-    const isCol = collapsed.has(g.id);
-    const CAP = 30;
-    const rows = nodes.slice(0, CAP).map(n => {
-      const p = probeInfo(n);
-      return `<div class="srow" title="${esc(n.name)} · ${esc(n.server)}:${n.port}">
-        <span class="sn">${esc(n.name)}</span>
-        <span class="lat ${p.cls}">${esc(p.text)}</span></div>`;
-    }).join('') + (nodes.length > CAP
-      ? `<div class="srow more"><span class="sn">还有 ${nodes.length - CAP} 个节点</span></div>` : '');
-    return `<div class="gcard ${isCol ? 'col' : ''}">
-      <div class="gcard-h" onclick="toggleGroupCard('${g.id}')" title="${isCol ? '展开查看节点' : '收起'}">
-        <span class="gname">${esc(g.name)}</span>
-        <span class="gstrat">${g.is_default ? '默认 · ' : ''}${esc(strat.name || g.strategy)}</span>
-        <span class="gchev">${CHEV}</span>
-      </div>
-      <div class="gsub">
-        <span><b>${nodes.length}</b> 节点 · ${groupHealthPill(g)}</span>
-        <span class="gactions" onclick="event.stopPropagation()">
-          ${iconBtn('order', `previewGroup('${g.id}')`, '查看输出顺序')}
+    const alive = nodes.filter(n => n.alive === true).length;
+    const dead = nodes.filter(n => n.alive === false).length;
+    const tested = alive + dead;
+    const sumCls = !tested ? 'dim' : (alive ? 'ok' : 'bad');
+    const sumTxt = tested ? `${alive} 可用` : '未测速';
+    return `<div class="gcard" onclick="openGroupView('${g.id}')"
+        title="查看分组 · ${esc(g.name)}">
+      <div class="ncard-t"><span class="nname">${esc(g.name)}</span>
+        <span class="lat ${sumCls}">${sumTxt}</span></div>
+      <div class="ncard-s"><span class="dim">${nodes.length} 节点 · ${esc(strat.name || g.strategy)}${g.is_default ? ' · 默认' : ''}</span>
+        <span class="nops" onclick="event.stopPropagation()">
           ${iconBtn('users', `openMembers('${g.id}')`, '手动挑选成员节点')}
           ${g.is_default ? '' : iconBtn('edit', `openGroupDlg('${g.id}')`, '编辑分组')
             + iconBtn('trash', `delGroup('${g.id}')`, '删除分组', 'danger')}
-        </span>
-      </div>
-      ${isCol ? '' : `<div class="gcard-b">
-        ${rows || '<div class="srow more"><span class="sn">该分组暂无节点，点上方「成员」图标挑选</span></div>'}
-        <div class="gfoot">
-          <label class="switch"><input type="checkbox" ${g.skip_dead ? 'checked' : ''}
-            onchange="updateGroup('${g.id}', {skip_dead: this.checked})">自动剔除不可用</label>
-          ${url ? `<span class="spacer"></span>
-            <div class="url-mini" title="${esc(url)}">
-              ${SVG.link}
-              <code>${esc(url.replace(/^https?:\/\/[^/]+/, ''))}</code>
-              ${iconBtn('copy', `copyBtn(this,'${url}')`, '复制该分组的订阅链接')}
-            </div>` : ''}
-        </div>
-      </div>`}
+        </span></div>
     </div>`;
   }).join('');
+}
+/* 分组详情弹框：组内节点延迟列表 + 订阅链接 + 全部操作 */
+function openGroupView(gid) {
+  const g = state.groups.find(x => x.id === gid);
+  if (!g) return;
+  state.gvGroup = gid;
+  const strat = state.strategies.find(s => s.key === g.strategy) || {};
+  const pub = (state.publish.groups || []).find(x => x.id === g.id) || {};
+  const url = pub.sub_url || '';
+  const nodes = groupNodes(g);
+  $('gvTitle').textContent = g.name;
+  $('gvMeta').textContent = `${nodes.length} 节点 · ${strat.name || g.strategy}` +
+    (g.is_default ? ' · 默认分组（含全部节点）' : '');
+  $('gvRows').innerHTML = nodes.map(n => {
+    const p = probeInfo(n);
+    return `<div class="srow" title="${esc(n.name)} · ${esc(n.server)}:${n.port}">
+      <span class="sn">${esc(n.name)}</span>
+      <span class="lat ${p.cls}">${esc(p.text)}</span></div>`;
+  }).join('') || '<div class="srow more"><span class="sn">该分组暂无节点，点下方「成员」挑选</span></div>';
+  $('gvSkip').checked = !!g.skip_dead;
+  $('gvUrl').style.display = url ? '' : 'none';
+  if (url) {
+    $('gvUrlCode').textContent = url.replace(/^https?:\/\/[^/]+/, '');
+    $('gvUrl').onclick = () => copyText(url);
+  }
+  $('gvEdit').style.display = g.is_default ? 'none' : '';
+  $('gvDel').style.display = g.is_default ? 'none' : '';
+  $('groupViewDlg').showModal();
+}
+function gvEdit() { const id = state.gvGroup; closeDlg('groupViewDlg'); openGroupDlg(id); }
+function gvMembers() { const id = state.gvGroup; closeDlg('groupViewDlg'); openMembers(id); }
+async function gvDel() {
+  const id = state.gvGroup;
+  closeDlg('groupViewDlg');
+  if (!confirm('确定删除该分组？')) return;
+  await api('/api/groups/' + id, {method: 'DELETE'});
+  toast('已删除'); loadGroups(); loadPublish();
 }
 /* 按钮触发弹框：新建 / 编辑分组（传 gid 即编辑） */
 function openGroupDlg(gid) {
@@ -2587,16 +2682,18 @@ function renderRuleRows() {
           <select class="raction" onchange="setRuleField(${i},'action',this.value)">${actionOptions(r.action)}</select>
           <span></span>${ops}</div>`;
       }
+      /* no-resolve 仅对 IP 类规则有意义（避免对目标域名做 DNS 解析），其余类型不渲染 */
+      const isIP = /^IP-CIDR6?$|^GEOIP$/.test(r.type || '');
       const noResolve = (r.extra || []).includes('no-resolve');
-      return `<div class="rrow">
+      return `<div class="rrow${isIP ? ' ip' : ''}">
         <span class="ridx">${i + 1}</span>
         <select class="rtype" onchange="ruleSetType(${i},this.value)">${typeOptions(r.type)}</select>
         <input class="rval" type="text" value="${esc(r.value)}" placeholder="如 example.com"
           oninput="setRuleField(${i},'value',this.value)">
         <select class="raction" onchange="setRuleField(${i},'action',this.value)">${actionOptions(r.action)}</select>
-        <label class="switch rnr" title="IP-CIDR / GEOIP 类规则常用，避免发 DNS 查询">
+        ${isIP ? `<label class="switch rnr" title="避免对本条规则的目标做 DNS 解析">
           <input type="checkbox" ${noResolve ? 'checked' : ''}
-            onchange="toggleRuleExtra(${i},'no-resolve',this.checked)">no-resolve</label>
+            onchange="toggleRuleExtra(${i},'no-resolve',this.checked)">no-resolve</label>` : ''}
         ${ops}</div>`;
     }).join('');
   }
@@ -2752,8 +2849,10 @@ async function loadPublish() {
   $('pubSubUrl').textContent = state.publish.sub_url;
   $('pubAclUrl').textContent = state.publish.acl_url;
   $('pubConfUrl').textContent = state.publish.conf_url || '';
+  $('groupsJsonUrl').textContent = state.publish.groups_url;
   $('groupsJsonLink').href = state.publish.groups_url;
   renderSrImport();
+  renderDns();
   renderPublishGroups();
   renderGroups();
 }
@@ -2762,9 +2861,18 @@ function srScheme(url, remark) {
   const b64 = btoa(unescape(encodeURIComponent(url)));
   return `shadowrocket://add/sub://${b64}?remark=${encodeURIComponent(remark)}`;
 }
+/* 导入链接点击：iOS / 触屏设备放行跳转 Shadowrocket，桌面端提示后拦截 */
+function srClick(ev) {
+  const ios = /iPhone|iPad|iPod/i.test(navigator.userAgent)
+    || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  if (ios) return true;
+  ev.preventDefault();
+  toast('请在 iPhone 上用 Safari 打开本页后点按「导入」；或复制链接到手机');
+  return false;
+}
 function renderSrImport() {
   if (!state.publish.conf_url) return;
-  $('srImportBtn').href = srScheme(state.publish.sub_url, '配置中心 · 节点');
+  $('pubAllImport').href = srScheme(state.publish.sub_url, '配置中心 · 全部节点');
   $('srConfBtn').href = srScheme(state.publish.conf_url, '配置中心 · 完整配置');
   const sel = $('srFinal');
   const cur = state.publish.sr_final_group || '';
@@ -2775,6 +2883,81 @@ function renderSrImport() {
   $('srTestUrl').value = state.publish.sr_test_url || 'http://www.gstatic.com/generate_204';
   $('srInterval').value = state.publish.sr_interval || 300;
   $('srTolerance').value = state.publish.sr_tolerance != null ? state.publish.sr_tolerance : 50;
+  renderDns();
+  renderExport();
+}
+/* ---------------- 静态托管导出（发布包 + 完整链接预览） ---------------- */
+function renderExport() {
+  const p = state.publish || {};
+  const base = (p.publish_base || '').replace(/\/+$/, '');
+  if (document.activeElement !== $('expBase')) $('expBase').value = p.publish_base || '';
+  const items = p.export_files || [];
+  $('expFiles').innerHTML = items.map(f => {
+    const url = base ? base + '/' + f.file : f.file;
+    return `<div class="efrow">
+      <span class="fn">${esc(f.file)}</span>
+      <span class="fu" title="${esc(url)}">${esc(url)}</span>
+      <button class="btn ghost sm" title="复制完整链接" data-url="${esc(url)}"
+        onclick="copyBtn(this, this.dataset.url)">${SVG.copy}</button>
+    </div>`;
+  }).join('');
+}
+async function saveExportBase(v) {
+  const val = (v || '').trim();
+  try {
+    await api('/api/settings', {method: 'PUT', body: {publish_base: val}});
+    state.publish.publish_base = val;
+    renderExport();
+    toast('已保存发布基地址');
+  } catch (e) { toast(e.error || '保存失败', false); }
+}
+/* ---------------- DNS 设置（[General] dns-server + [Host]） ---------------- */
+function renderDns() {
+  const d = state.publish.sr_dns || {};
+  $('dnsServers').value = d.servers || '';
+  $('dnsDirect').value = d.direct || '';
+  $('dnsFallback').value = d.fallback || '';
+  $('dnsLocalProxy').checked = !!d.local_for_proxy;
+  renderDnsHosts(d.hosts || []);
+}
+function renderDnsHosts(hosts) {
+  state.dnsHosts = hosts;
+  $('dnsHosts').innerHTML = hosts.length ? hosts.map((h, i) => `
+    <div class="dhrow">
+      <input type="text" value="${esc(h.domain)}" placeholder="*.example.com"
+        oninput="state.dnsHosts[${i}].domain=this.value">
+      <select onchange="state.dnsHosts[${i}].mode=this.value">
+        <option value="dns" ${h.mode === 'ip' ? '' : 'selected'}>指定 DNS</option>
+        <option value="ip" ${h.mode === 'ip' ? 'selected' : ''}>固定 IP</option>
+      </select>
+      <input type="text" value="${esc(h.value)}" placeholder="1.1.1.1"
+        oninput="state.dnsHosts[${i}].value=this.value">
+      ${iconBtn('trash', `delDnsRow(${i})`, '删除该行')}
+    </div>`).join('')
+    : '<div class="dim" style="font-size:12px;padding:6px 0">暂无指定域名，全部域名走上面的全局 DNS</div>';
+}
+function addDnsRow() {
+  (state.dnsHosts = state.dnsHosts || []).push({domain: '', mode: 'dns', value: ''});
+  renderDnsHosts(state.dnsHosts);
+}
+function delDnsRow(i) {
+  state.dnsHosts.splice(i, 1);
+  renderDnsHosts(state.dnsHosts);
+}
+async function saveDns() {
+  const body = {sr_dns: {
+    servers: $('dnsServers').value,
+    direct: $('dnsDirect').value,
+    fallback: $('dnsFallback').value,
+    local_for_proxy: $('dnsLocalProxy').checked,
+    hosts: (state.dnsHosts || []).filter(h => (h.domain || '').trim() && (h.value || '').trim())
+  }};
+  try {
+    await api('/api/settings', {method: 'PUT', body});
+    state.publish = await api('/api/publish');
+    renderDns();
+    toast('DNS 已保存，客户端重新下载配置即生效');
+  } catch (e) { toast(e.error || '保存失败', false); }
 }
 async function saveSrSettings() {
   const body = {
@@ -2810,14 +2993,13 @@ function renderPublishGroups() {
         <div class="prow-url"><code>${esc(g.sub_url)}</code></div>
       </div>
       <div class="prow-ops">
-        <a class="btn ghost sm" href="${esc(g.import_url || srScheme(g.sub_url, g.name))}" onclick="toast('请在 iPhone 上用 Safari 打开本页面后点按');return false;">${SVG.plus || ''}导入</a>
-        <button class="btn ghost sm" onclick="openPreview('${g.raw_url}','${esc(g.name)}')">${SVG.eye}预览</button>
-        <button class="btn sm" onclick="copyBtn(this, '${g.sub_url}')">${SVG.copy}复制链接</button>
+        <a class="btn sm" href="${esc(g.import_url || srScheme(g.sub_url, g.name))}" onclick="return srClick(event)">导入</a>
+        <button class="btn ghost sm" onclick="copyBtn(this, '${g.sub_url}')">${SVG.copy}复制链接</button>
       </div>
     </div>`).join('') : `
     <div class="empty">
       <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round"><rect x="3" y="3" width="7" height="7" rx="1.6"/><rect x="14" y="3" width="7" height="7" rx="1.6"/><rect x="3" y="14" width="7" height="7" rx="1.6"/><rect x="14" y="14" width="7" height="7" rx="1.6"/></svg>
-      <div>还没有分组，先到「分组与策略」创建一个</div>
+      <div>还没有分组，先到「分组与策略」页新建一个</div>
     </div>`;
 }
 async function rotateToken() {

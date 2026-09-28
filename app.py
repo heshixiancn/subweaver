@@ -11,8 +11,10 @@ Shadowsocks Web 配置管理器
 """
 import base64
 import concurrent.futures
+import datetime
 import getpass
 import hashlib
+import io
 import json
 import os
 import random
@@ -23,10 +25,11 @@ import sys
 import threading
 import time
 import urllib.parse
+import zipfile
 
 import requests
-from flask import (Flask, abort, jsonify, request, send_from_directory,
-                   session)
+from flask import (Flask, abort, jsonify, request, send_file,
+                   send_from_directory, session)
 
 import protocols
 import db as store_mod
@@ -44,6 +47,49 @@ _lock = threading.RLock()
 _rr_counters = {}          # 轮询策略内存计数器 {group_id: n}
 app = Flask(__name__, static_folder="static")
 app.config["MAX_CONTENT_LENGTH"] = 8 * 1024 * 1024
+app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0   # 前端迭代频繁：静态资源一律不缓存，避免改版后浏览器拿旧页面
+
+
+@app.after_request
+def _no_cache_html(resp):
+    """HTML 主页禁止缓存（订阅链接/token 会变）；其他静态资源交给上面的 max_age=0"""
+    if resp.mimetype == "text/html":
+        resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    return resp
+
+
+# Shadowrocket DNS 默认值：全局 DNS 覆写（支持 system / IP / https: DoH / tls: DoT / quic: DoQ / h3:）
+DEFAULT_SR_DNS = {"servers": "system, 223.5.5.5, 119.29.29.29",
+                  "direct": "", "fallback": "", "local_for_proxy": False, "hosts": []}
+
+
+def norm_sr_dns(raw):
+    """规范化 DNS 设置。hosts 每行：{domain, mode: dns|ip, value}
+    mode=dns → [Host] 写 `domain = server:值`（该域名用指定 DNS 解析）
+    mode=ip  → [Host] 写 `domain = 值`（直接固定映射，不走 DNS）"""
+    raw = raw if isinstance(raw, dict) else {}
+
+    def _txt(v):
+        return " ".join(str(v or "").replace("\n", " ").split())
+
+    hosts = []
+    for h in (raw.get("hosts") or [])[:200]:
+        if not isinstance(h, dict):
+            continue
+        dom, val = _txt(h.get("domain")), _txt(h.get("value"))
+        mode = "ip" if str(h.get("mode") or "").strip() == "ip" else "dns"
+        if mode == "ip" and val.lower().startswith("server:"):
+            mode = "dns"
+            val = val[len("server:"):].strip()   # 已带前缀则纠正模式并去掉，避免写成 server:server:
+        # 域名/取值不得含配置分隔符，防止写入配置段时串行
+        if not dom or not val or any(c in dom for c in " ,=\t") or any(c in val for c in ",=\t"):
+            continue
+        hosts.append({"domain": dom, "mode": mode, "value": val})
+    return {"servers": _txt(raw.get("servers")) or DEFAULT_SR_DNS["servers"],
+            "direct": _txt(raw.get("direct")),
+            "fallback": _txt(raw.get("fallback")),
+            "local_for_proxy": bool(raw.get("local_for_proxy")),
+            "hosts": hosts}
 
 DEFAULT_RULES = """[bypass_all]
 [bypass_list]
@@ -114,6 +160,10 @@ DEFAULT_DATA = {
                  "sr_final_group": "", "sr_udp_relay": True,
                  "sr_test_url": "http://www.gstatic.com/generate_204",
                  "sr_interval": 300, "sr_tolerance": 50,
+                 "sr_dns": {"servers": DEFAULT_SR_DNS["servers"], "direct": "",
+                            "fallback": "", "local_for_proxy": False, "hosts": []},
+                 # 静态托管发布地址前缀（仅用于界面预览完整链接，可留空）
+                 "publish_base": "",
                  # require_login 为 False 时关闭登录页与鉴权（本机/可信内网自用）
                  "require_login": True},
     "rules": DEFAULT_RULES,
@@ -1056,6 +1106,19 @@ def build_shadowrocket_conf(data):
     final_name = gid_names.get(final_group["id"], "DIRECT") if final_group else "DIRECT"
     rule_lines = _build_surge_rules(data, gid_names, final_name)
 
+    # DNS 设置（[General] 覆写 + [Host] 指定域名 DNS / 固定映射）
+    dns = norm_sr_dns((data["settings"] or {}).get("sr_dns"))
+    dns_general = [f"dns-server = {dns['servers']}"]
+    if dns["direct"]:
+        dns_general.append(f"direct-dns-server = {dns['direct']}")
+    if dns["fallback"]:
+        dns_general.append(f"fallback-dns-server = {dns['fallback']}")
+    if dns["local_for_proxy"]:
+        # 让本地 [Host] 映射与解析对代理连接也生效（默认代理域名在节点端解析）
+        dns_general.append("use-local-host-item-for-proxy = true")
+    host_lines = [f"{h['domain']} = " + (f"server:{h['value']}" if h["mode"] == "dns" else h["value"])
+                  for h in dns["hosts"]]
+
     # WireGuard 节点单独生成 [WireGuard] 接口段（Surge 兼容格式）
     wg_lines = []
     for n in data["nodes"]:
@@ -1088,7 +1151,7 @@ def build_shadowrocket_conf(data):
         "100.64.0.0/10, localhost, *.local",
         "bypass-tun = 10.0.0.0/8, 100.64.0.0/10, 127.0.0.0/8, 169.254.0.0/16, "
         "172.16.0.0/12, 192.168.0.0/16, 224.0.0.0/4, 255.255.255.255/32, fe80::/10",
-        "dns-server = system, 223.5.5.5, 119.29.29.29",
+        *dns_general,
         "proxy-test-url = " + (data["settings"] or {}).get(
             "sr_test_url", "http://www.gstatic.com/generate_204"),
         "",
@@ -1101,6 +1164,8 @@ def build_shadowrocket_conf(data):
     ]
     if wg_lines:
         sections += ["[WireGuard]", *wg_lines, ""]
+    if host_lines:
+        sections += ["[Host]", *host_lines, ""]
     sections += ["[Rule]", *rule_lines, ""]
     return "\n".join(sections)
 
@@ -1139,6 +1204,204 @@ def regen_outputs(data):
     with open(os.path.join(OUTPUT_DIR, "pubinfo.json"), "w", encoding="utf-8") as f:
         json.dump({"token": data["publish_token"], "total_nodes": len(all_uris),
                    "groups": index}, f, ensure_ascii=False, indent=2)
+
+
+# ------------------------------------------------ 静态托管发布包（上传即用）
+# 打包成一 upload 就能用的静态目录：订阅文件 + 完整配置 + 手机友好的落地页。
+# 落地页里的链接由浏览器按 location 自己拼绝对地址，所以换域名/换目录都不用重新导出。
+PUBLISH_LANDING = """<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f4f5f7">
+<title>Shadowrocket 订阅</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;padding:22px 16px 40px;background:#f4f5f7;color:#1c1c1e;
+  font:15px/1.55 -apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI",sans-serif}
+.wrap{max-width:720px;margin:0 auto}
+h1{font-size:21px;letter-spacing:-.4px;margin:0 0 4px}
+.meta{color:rgba(60,60,67,.6);font-size:13px;margin:0 0 16px}
+.notice{background:rgba(255,159,10,.14);border:1px solid rgba(255,159,10,.3);
+  border-radius:12px;padding:10px 13px;font-size:12.5px;color:#8a5a00;margin-bottom:16px}
+.card{background:#fff;border:1px solid rgba(22,32,58,.08);border-radius:14px;
+  padding:13px 15px;margin-bottom:11px;box-shadow:0 1px 2px rgba(22,32,58,.04)}
+.card .top{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.card .t{font-weight:600;font-size:14.5px}
+.card .d{color:rgba(60,60,67,.6);font-size:12.5px}
+.card code{display:block;margin:8px 0 10px;padding:7px 9px;background:#f6f7f9;
+  border:1px solid rgba(22,32,58,.07);border-radius:9px;font-size:11.5px;
+  color:rgba(60,60,67,.8);word-break:break-all;
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.ops{display:flex;gap:8px;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;gap:5px;border:0;cursor:pointer;
+  padding:8px 14px;border-radius:9px;font-size:13px;font-weight:500;text-decoration:none;
+  font-family:inherit}
+.btn.p{background:#007aff;color:#fff}
+.btn.g{background:#eef0f3;color:#1c1c1e}
+.hint{color:rgba(60,60,67,.55);font-size:12px;margin-top:20px;line-height:1.75}
+.hint b{color:rgba(60,60,67,.75)}
+.hint code{background:#eef0f3;border-radius:5px;padding:1px 5px;font-size:11.5px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Shadowrocket 订阅</h1>
+  <p class="meta">生成于 @@STAMP@@ · @@NODES@@ 个节点 · @@GROUPS@@ 个分组</p>
+  <div class="notice">链接包含节点凭据，拿到链接即可使用。请勿公开分享或提交到公开仓库。</div>
+  <div id="list"></div>
+  <div class="hint">
+    <b>导入方式</b><br>
+    1. iPhone 上用 Safari 打开本页，点「导入」直接唤起 Shadowrocket 添加订阅<br>
+    2. 或点「复制链接」后去 Shadowrocket → 首页 → 右上角 + → 类型选「订阅」粘贴<br>
+    3. 要分组和分流规则：用「完整配置」那条，Shadowrocket → 底部「配置」→ 右上角 + → 粘贴<br>
+    4. 自动更新：设置 → 服务器订阅 → 打开「打开时更新」；本机改动后重新导出并覆盖上传本目录
+  </div>
+</div>
+<script>
+var FILES = @@FILES@@;
+function abs(f){ return new URL(f, location.href).href; }
+function b64(s){ return btoa(unescape(encodeURIComponent(s))); }
+function sr(u, r){ return 'shadowrocket://add/sub://' + b64(u) + '?remark=' + encodeURIComponent(r); }
+function isIOS(){
+  var ua = navigator.userAgent;
+  return /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+function copy(t, btn){
+  var done = function(){ var o = btn.textContent; btn.textContent = '已复制';
+    setTimeout(function(){ btn.textContent = o; }, 1500); };
+  if (window.isSecureContext && navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(t).then(done, function(){ legacy(t, done); });
+  } else { legacy(t, done); }
+}
+function legacy(t, done){
+  try {
+    var ta = document.createElement('textarea');
+    ta.value = t; ta.setAttribute('readonly', '');
+    ta.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0';
+    document.body.appendChild(ta); ta.select(); ta.setSelectionRange(0, t.length);
+    document.execCommand('copy'); ta.remove(); done();
+  } catch (e) { prompt('请长按全选后复制：', t); }
+}
+var list = document.getElementById('list');
+FILES.forEach(function(f){
+  var url = abs(f.file);
+  var el = document.createElement('div');
+  el.className = 'card';
+  el.innerHTML = '<div class="top"><span class="t"></span><span class="d"></span></div>'
+    + '<code></code><div class="ops"></div>';
+  el.querySelector('.t').textContent = f.label;
+  el.querySelector('.d').textContent = f.desc;
+  el.querySelector('code').textContent = url;
+  var ops = el.querySelector('.ops');
+  if (f.kind !== 'rule') {
+    var a = document.createElement('a');
+    a.className = 'btn p'; a.textContent = '导入'; a.href = sr(url, f.label);
+    a.onclick = function(ev){
+      if (!isIOS()) { ev.preventDefault(); copy(url, a); }
+    };
+    ops.appendChild(a);
+  }
+  var b = document.createElement('button');
+  b.className = 'btn g'; b.textContent = '复制链接';
+  b.onclick = function(){ copy(url, b); };
+  ops.appendChild(b);
+  list.appendChild(el);
+});
+</script>
+</body>
+</html>
+"""
+
+PUBLISH_README = """Shadowrocket 订阅发布包
+生成时间：@@STAMP@@
+内容：@@NODES@@ 个节点 / @@GROUPS@@ 个分组
+
+【怎么用】
+1. 把本目录里的所有文件原样上传到任意静态托管：
+   GitHub Pages / Cloudflare Pages / Vercel / 对象存储（OSS/COS/R2）/ 自建 Nginx 都行
+2. 手机浏览器打开你上传后的地址（.../index.html），页面会列出全部链接
+3. 点「导入」直接唤起 Shadowrocket；也可以点「复制链接」手动添加订阅
+4. 想带分组和分流规则：用 shadowrocket.conf（在 Shadowrocket「配置」页粘贴链接）
+5. 自动更新：Shadowrocket → 设置 → 服务器订阅 → 打开「打开时更新」
+
+【注意】
+- 这些链接包含节点凭据，拿到链接即可使用你的节点。请勿公开分享，也不要提交到公开仓库。
+- 节点或规则有改动后，需要重新导出本包并覆盖上传。
+- index.html 里的链接是打开页面时按当前域名自动拼的，换域名/换目录都不用重新导出。
+
+【文件说明】
+@@FILELIST@@
+"""
+
+
+def _publish_slug(name, idx):
+    """分组名 → 文件名安全片段：HK → hk；纯中文名 → g<序号>"""
+    s = re.sub(r"[^A-Za-z0-9]+", "-", str(name or "")).strip("-").lower()
+    return s if len(s) >= 2 else "g%d" % (idx + 1)
+
+
+def _export_items(data):
+    """发布包清单（轻量，不含内容）：文件名 / 名称 / 说明 / 类型"""
+    items = [{"file": "subscription.b64", "label": "全部节点（Base64）",
+              "desc": "%d 个节点 · Shadowrocket 订阅格式，推荐" % len(data["nodes"]),
+              "kind": "sub"},
+             {"file": "subscription.txt", "label": "全部节点（明文）",
+              "desc": "%d 个节点 · 每行一条 ss:// 链接" % len(data["nodes"]),
+              "kind": "sub"}]
+    for i, g in enumerate(data["groups"]):
+        uris, _nodes, note = build_uris_for_group(data, g)
+        slug = _publish_slug(g["name"], i)
+        strat = next((s["name"] for s in STRATEGIES if s["key"] == g["strategy"]),
+                     g["strategy"])
+        desc = "%s · %d 节点%s" % (strat, len(uris), (" · " + note) if note else "")
+        items.append({"file": "group-%s.b64" % slug, "label": "分组 · %s" % g["name"],
+                      "desc": desc, "kind": "sub"})
+        items.append({"file": "group-%s.txt" % slug, "label": "分组 · %s（明文）" % g["name"],
+                      "desc": desc, "kind": "sub"})
+    items.append({"file": "shadowrocket.conf", "label": "完整配置",
+                  "desc": "节点 + 分组 + 分流规则，带策略与 DNS 设置", "kind": "conf"})
+    items.append({"file": "rules.acl", "label": "规则文件",
+                  "desc": "ACL 格式，ShadowsocksX-NG 等客户端使用", "kind": "rule"})
+    return items
+
+
+def build_publish_bundle(data):
+    """生成发布包全部文件：{文件名: bytes}"""
+    out = {}
+    all_uris = [make_ss_uri(n) for n in data["nodes"]]
+    text = "\n".join(all_uris) + ("\n" if all_uris else "")
+    out["subscription.txt"] = text.encode()
+    out["subscription.b64"] = base64.b64encode(text.encode())
+    for i, g in enumerate(data["groups"]):
+        uris, _nodes, _note = build_uris_for_group(data, g)
+        slug = _publish_slug(g["name"], i)
+        t = "\n".join(uris) + ("\n" if uris else "")
+        out["group-%s.txt" % slug] = t.encode()
+        out["group-%s.b64" % slug] = base64.b64encode(t.encode())
+    out["shadowrocket.conf"] = build_shadowrocket_conf(data).encode()
+    out["rules.acl"] = data["rules"].encode()
+
+    stamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+    items = _export_items(data)
+    landing = (PUBLISH_LANDING
+               .replace("@@STAMP@@", stamp)
+               .replace("@@NODES@@", str(len(data["nodes"])))
+               .replace("@@GROUPS@@", str(len(data["groups"])))
+               .replace("@@FILES@@", json.dumps(items, ensure_ascii=False)))
+    out["index.html"] = landing.encode()
+    out["manifest.json"] = json.dumps(
+        {"generated_at": stamp, "node_count": len(data["nodes"]),
+         "group_count": len(data["groups"]), "files": items},
+        ensure_ascii=False, indent=2).encode()
+    filelist = "\n".join("  %-26s %s" % (it["file"], it["desc"]) for it in items)
+    out["README.txt"] = (PUBLISH_README
+                         .replace("@@STAMP@@", stamp)
+                         .replace("@@NODES@@", str(len(data["nodes"])))
+                         .replace("@@GROUPS@@", str(len(data["groups"])))
+                         .replace("@@FILELIST@@", filelist)).encode()
+    return out
 
 
 # ------------------------------------------------------------------- auth
@@ -1553,6 +1816,45 @@ def api_refresh_all_subs():
     return jsonify({"ok": True, "summary": summary})
 
 
+@app.route("/api/subs/<sub_id>", methods=["PUT"])
+@auth_required
+def api_edit_sub(sub_id):
+    """编辑订阅源：名称 / 订阅地址 / 自动归组"""
+    data = load_data()
+    sub = next((s for s in data["subscriptions"] if s["id"] == sub_id), None)
+    if not sub:
+        return jsonify({"error": "订阅不存在"}), 404
+    s = request.json or {}
+    url = (s.get("url") or "").strip()
+    if url and not url.startswith(("http://", "https://")):
+        return jsonify({"error": "请填写有效的订阅 URL"}), 400
+    url_changed = bool(url) and url != sub["url"]
+    if url:
+        sub["url"] = url
+    name_changed = False
+    if (s.get("name") or "").strip():
+        new_name = s["name"].strip()
+        name_changed = new_name != sub["name"]
+        sub["name"] = new_name
+    if name_changed:            # 同步已有节点的来源名，无需等下次刷新
+        for n in data["nodes"]:
+            if n.get("source") == sub_id:
+                n["source_name"] = sub["name"]
+    if "auto_group" in s:       # 自动归组：先全摘再挂新组
+        for g in data["groups"]:
+            g["auto_sources"] = [x for x in g.get("auto_sources", []) if x != sub_id]
+        gid = s.get("auto_group")
+        if gid:
+            g = next((x for x in data["groups"] if x["id"] == gid), None)
+            if g:
+                g.setdefault("auto_sources", [])
+                if sub_id not in g["auto_sources"]:
+                    g["auto_sources"].append(sub_id)
+    save_data(data)
+    regen_outputs(data)
+    return jsonify({"ok": True, "subscription": sub, "url_changed": url_changed})
+
+
 @app.route("/api/subs/<sub_id>", methods=["DELETE"])
 @auth_required
 def api_del_sub(sub_id):
@@ -1674,9 +1976,12 @@ def api_settings():
         for k in ("auto_health", "health_interval_minutes", "health_timeout",
                   "sr_final_group", "sr_udp_relay",
                   "sr_test_url", "sr_interval", "sr_tolerance",
+                  "publish_base",
                   "require_login"):
             if k in payload:
                 data["settings"][k] = payload[k]
+        if "sr_dns" in payload:
+            data["settings"]["sr_dns"] = norm_sr_dns(payload["sr_dns"])
         save_data(data)
         regen_outputs(data)
     return jsonify({"settings": data["settings"],
@@ -1744,7 +2049,7 @@ def _publish_payload():
     token = data["publish_token"]
     base = request.host_url.rstrip("/")
     groups = []
-    for g in data["groups"]:
+    for i, g in enumerate(data["groups"]):
         nodes = group_member_nodes(data, g)
         sub_url = f"{base}/sub/{token}/g/{g['id']}.txt"
         groups.append({
@@ -1757,6 +2062,7 @@ def _publish_payload():
             "sub_url": sub_url,
             "raw_url": f"{base}/sub/{token}/g/{g['id']}.raw",
             "import_url": _sr_import_link(sub_url, g["name"]),
+            "slug": _publish_slug(g["name"], i),
         })
     st = data["settings"] or {}
     final_group = _resolve_final_group(data)
@@ -1772,6 +2078,11 @@ def _publish_payload():
             "sr_test_url": st.get("sr_test_url", "http://www.gstatic.com/generate_204"),
             "sr_interval": st.get("sr_interval", 300),
             "sr_tolerance": st.get("sr_tolerance", 50),
+            "sr_dns": norm_sr_dns(st.get("sr_dns")),
+            # 静态托管导出：清单供界面展示；publish_base 是用户填的托管地址前缀（可空）
+            "publish_base": (st.get("publish_base") or "").strip(),
+            "export_url": f"{base}/api/export.zip",
+            "export_files": _export_items(data),
             "groups_url": f"{base}/sub/{token}/groups", "groups": groups}
 
 
@@ -1789,6 +2100,22 @@ def api_rotate_token():
     save_data(data)
     regen_outputs(data)
     return jsonify(_publish_payload())
+
+
+@app.route("/api/export.zip")
+@auth_required
+def api_export_zip():
+    """下载静态托管发布包：解压后原样上传到任意静态托管即可用（含手机落地页）"""
+    data = load_data()
+    bundle = build_publish_bundle(data)
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        for name, content in bundle.items():
+            z.writestr(name, content)
+    buf.seek(0)
+    stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M")
+    return send_file(buf, mimetype="application/zip", as_attachment=True,
+                     download_name="shadowrocket-publish-%s.zip" % stamp)
 
 
 # ------------------------------------------------------- public endpoints
