@@ -1,9 +1,9 @@
 services:
-  shadowrocket-config:
+  subweaver:
     build: .
     # 或者用 GitHub Actions 构建好的镜像：
-    # image: ghcr.io/<你的用户名>/shadowsocket-proxy:latest
-    container_name: shadowrocket-config
+    # image: ghcr.io/<你的用户名>/subweaver:latest
+    container_name: subweaver
     ports:
       - "5017:5017"
     volumes:

@@ -1,11 +1,17 @@
-# shadowsocket-proxy（shadowrocket config）
+# SubWeaver · Shadowrocket 订阅聚合与配置中心
 
-轻量的 Shadowrocket 订阅配置中心：聚合多个远程订阅源，按分组配置负载均衡策略，
-一键导入 Shadowrocket，并下发 Surge 风格的分流规则。单容器、单 SQLite 文件即可跑。
+把多个远程订阅源**编织**成一份统一的 Shadowrocket 配置：聚合节点、分组设策略、
+管理分流规则与 DNS，一键导入客户端。单容器 + 单个 SQLite 文件即可运行。
+
+```
+订阅源聚合  →  节点池  →  分组与策略  →  规则 / DNS  →  订阅链接 · 完整配置
+```
 
 ## 功能
 
 - **订阅聚合**：添加多个远程订阅源，一键抓取、解析、合并节点，刷新时按来源替换
+- **订阅源管理**：页面上直接查看订阅地址（点击复制）、在线编辑名称/地址/自动归组，
+  单个刷新，抓取失败原因如实显示
 - **20 种协议**：ss / ssr / vmess / vless / trojan / hysteria / hysteria2 / tuic /
   socks5 / socks5-tls / http / https / http2 / http3 / wireguard / ssh / snell /
   brook / gost / juicity，支持 URI 解析与手工录入
@@ -15,6 +21,10 @@
   如实标注「仅端口可达」）
 - **Surge 风格规则**：表单或文本两种方式编辑分流规则，随配置一起下发
 - **一键导入 Shadowrocket**：`shadowrocket://` 协议直达，含分组与规则的完整配置
+- **DNS 设置**：可视化配置 `[General] dns-server`（system / DoH / DoT / DoQ）与 `[Host]`
+  指定域名解析或固定 IP，含直连 DNS、兜底 DNS
+- **静态托管导出**：一键导出发布包（订阅文件 + 完整配置 + 手机友好落地页），
+  上传到任意静态托管后，手机在蜂窝网络下也能订阅刷新，不依赖本机常开
 - 数据存 SQLite（`shadowrocket.db`，WAL 模式），自动从旧版 `data.json` 迁移
 
 ## 快速开始
@@ -31,11 +41,11 @@ python app.py            # 或 ./start.sh（本机）/ ./start.sh lan（局域�
 ### Docker
 
 ```bash
-docker build -t shadowrocket-config .
-docker run -d --name shadowrocket-config \
+docker build -t subweaver .
+docker run -d --name subweaver \
   -p 5017:5017 \
   -v "$PWD/data:/app/data" \
-  shadowrocket-config
+  subweaver
 ```
 
 或直接 compose：
@@ -80,7 +90,7 @@ docker compose up -d
 `ghcr.io/<你的用户名>/<仓库名>`（使用仓库自带的 `GITHUB_TOKEN`，无需额外配置）。
 
 ```bash
-docker pull ghcr.io/<你的用户名>/shadowsocket-proxy:latest
+docker pull ghcr.io/<你的用户名>/subweaver:latest
 ```
 
 ## 安全提示
