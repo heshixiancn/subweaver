@@ -261,27 +261,43 @@ def _strip_scheme(uri):
 
 def _parse_vless(uri):
     body, name = _split_body(uri, "vless")
+    # Some subscription providers encode the whole authority as base64:
+    # vless://base64("uuid@host:port")?params. Shadowrocket accepts this
+    # variant, so decode it before applying the normal parser.
+    if "@" not in body.split("?", 1)[0]:
+        authority, sep, suffix = body.partition("?")
+        decoded = _b64d(authority)
+        if decoded and "@" in decoded:
+            body = decoded + (sep + suffix if sep else "")
     userinfo, hp, query = _split_userinfo(body)
     server, port = _hostport(hp)
     if not server or not port or not userinfo:
         return None
     q = _qs(query)
     insecure = _strip_insecure(q)
-    net = (q.get("type") or "tcp").lower()
+    obfs = (q.get("obfs") or "").lower()
+    net = (q.get("type") or ("ws" if obfs in ("ws", "websocket") else "tcp")).lower()
     sec = (q.get("security") or "").lower()
+    tls_flag = str(q.get("tls") or "").lower() in ("1", "true", "yes")
+    obfs_host = ""
+    if q.get("obfsParam"):
+        try:
+            obfs_host = (json.loads(q["obfsParam"]) or {}).get("Host", "")
+        except (TypeError, ValueError):
+            pass
     node = {
         "type": "vless", "name": name or f"{server}:{port}", "server": server,
         "port": port, "uuid": urllib.parse.unquote(userinfo),
-        "network": net, "tls": sec in ("tls", "reality", "xtls"),
+        "network": net, "tls": sec in ("tls", "reality", "xtls") or tls_flag,
         "reality": sec == "reality" or bool(q.get("pbk")),
         # SNI 取值优先级：sni= → peer=（Shadowrocket 的别名，REALITY 机场常用）→ ws 的 host=
         "sni": (q.get("sni", "") or q.get("peer", "")
-                or (q.get("host", "") if net == "ws" else "")),
+                or (q.get("host", "") if net == "ws" else "") or obfs_host),
         "fp": q.get("fp", ""), "alpn": q.get("alpn", ""),
         "flow": q.get("flow", ""), "encryption": q.get("encryption", "none") or "none",
         "pbk": q.get("pbk", ""), "sid": q.get("sid", ""), "spx": q.get("spx", ""),
         "insecure": insecure,
-        "ws_path": q.get("path", "") or "/", "ws_host": q.get("host", ""),
+        "ws_path": q.get("path", "") or "/", "ws_host": q.get("host", "") or obfs_host,
         "grpc_service": q.get("serviceName", ""), "grpc_mode": q.get("mode", "gun"),
         "header_type": q.get("headerType", ""),
     }

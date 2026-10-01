@@ -33,6 +33,7 @@ from flask import (Flask, abort, jsonify, request, send_file,
 
 import protocols
 import db as store_mod
+from mihomo_gateway import MihomoManager, build_config
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 # 数据目录：Docker 部署时挂卷到这里（SS_DATA_DIR），本地默认项目根目录
@@ -42,6 +43,13 @@ DB_FILE = os.environ.get("SS_DB_FILE") or os.path.join(DATA_DIR, "shadowrocket.d
 LEGACY_DATA_FILE = os.environ.get("SS_DATA_FILE") or os.path.join(DATA_DIR, "data.json")
 OUTPUT_DIR = os.environ.get("SS_OUTPUT_DIR") or os.path.join(DATA_DIR, "output")
 _store = store_mod.Store(DB_FILE)
+
+MIHOMO_DIR = os.path.join(OUTPUT_DIR, "mihomo")
+MIHOMO_API_PORT = int(os.environ.get("SS_MIHOMO_API_PORT", "9090"))
+_mihomo_binary = os.environ.get("SS_MIHOMO", "bin/mihomo")
+if not os.path.isabs(_mihomo_binary):
+    _mihomo_binary = os.path.join(BASE, _mihomo_binary)
+_mihomo = MihomoManager(_mihomo_binary, MIHOMO_DIR)
 
 _lock = threading.RLock()
 _rr_counters = {}          # 轮询策略内存计数器 {group_id: n}
@@ -200,6 +208,13 @@ def load_data():
             g.setdefault("auto_sources", [])
             g.setdefault("strategy", "manual")
             g.setdefault("skip_dead", False)
+            g.setdefault("socks5_enabled", True)
+            g.setdefault("socks5_listen", "127.0.0.1")
+            g.setdefault("socks5_port", 0)
+            g.setdefault("test_url", "")
+            g.setdefault("interval", 0)
+            g.setdefault("tolerance", 50)
+            g.setdefault("active_node", "")
         for n in data["nodes"]:
             n.setdefault("alive", None)
             n.setdefault("latency_ms", None)
@@ -274,6 +289,33 @@ def fetch_subscription(url):
     if not nodes:                                   # 兜底：机场按 YAML 下发
         nodes = protocols.parse_clash_yaml(text)
     return nodes
+
+
+def _node_fingerprint(node):
+    """Stable identity for a proxy across subscription refreshes."""
+    uri = (node.get("uri") or "").strip()
+    if uri:
+        # A provider may change only the display remark after a refresh.
+        return urllib.parse.urldefrag(uri)[0]
+    ignore = {"id", "name", "source", "source_name", "source_ids", "uri",
+              "alive", "latency_ms", "probe", "last_check"}
+    return json.dumps({k: v for k, v in node.items() if k not in ignore},
+                      ensure_ascii=False, sort_keys=True, default=str)
+
+
+def _prepare_refreshed_nodes(data, sub_id, nodes):
+    old = { _node_fingerprint(n): n for n in data["nodes"]
+            if n.get("source") == sub_id }
+    out = []
+    for node in nodes:
+        previous = old.get(_node_fingerprint(node))
+        node.update({"id": previous.get("id") if previous else secrets.token_hex(4),
+                     "source": sub_id, "alive": None, "latency_ms": None})
+        node["source_name"] = next((s.get("name") for s in data["subscriptions"]
+                                     if s.get("id") == sub_id), node.get("source_name", ""))
+        node["source_ids"] = list(dict.fromkeys((previous or {}).get("source_ids", []) + [sub_id]))
+        out.append(node)
+    return out
 
 
 # ------------------------------------------------------------- health check
@@ -817,7 +859,7 @@ def group_member_nodes(data, group):
     explicit = list(group.get("members") or [])
     member_ids = set(explicit)
     for n in data["nodes"]:
-        if n.get("source") in auto:
+        if n.get("source") in auto or auto.intersection(n.get("source_ids") or []):
             member_ids.add(n["id"])
     nodes = [n for n in data["nodes"] if n["id"] in member_ids]
     order = {nid: i for i, nid in enumerate(explicit)}   # 显式成员保留人工顺序
@@ -876,6 +918,26 @@ def build_uris_for_group(data, group):
     nodes = group_member_nodes(data, group)
     nodes, note = apply_strategy(nodes, group)
     return [make_ss_uri(n) for n in nodes], nodes, note
+
+
+def build_mihomo_config(data):
+    """Translate the page model into a persistent mihomo gateway config."""
+    groups = []
+    for group in data.get("groups", []):
+        copy = dict(group)
+        copy["_mihomo_members"] = group_member_nodes(data, group)
+        groups.append(copy)
+    view = dict(data)
+    view["groups"] = groups
+    return build_config(view, node_to_mihomo, MIHOMO_DIR, MIHOMO_API_PORT)
+
+
+def refresh_mihomo_if_running(data):
+    """Apply model changes immediately when the managed gateway is active."""
+    if not _mihomo.status().get("running"):
+        return
+    _mihomo.write_config(build_mihomo_config(data))
+    _mihomo.start()
 
 
 # --------------------------------------------------------- Shadowrocket conf
@@ -1168,6 +1230,28 @@ def build_shadowrocket_conf(data):
         sections += ["[Host]", *host_lines, ""]
     sections += ["[Rule]", *rule_lines, ""]
     return "\n".join(sections)
+
+
+def build_surge_gateway_conf(data, only_group=None):
+    """Surge config consuming the local SOCKS5 ports exposed by mihomo."""
+    lines = ["# SubWeaver -> mihomo SOCKS5 网关", "[General]", "loglevel = notify", "", "[Proxy]"]
+    names, used = [], set()
+    for i, g in enumerate(data.get("groups", [])):
+        if only_group and g.get("id") != only_group.get("id"):
+            continue
+        if not g.get("socks5_enabled", True):
+            continue
+        name = _sr_policy_name(g.get("name"), used)
+        names.append(name)
+        port = int(g.get("socks5_port") or (18080 + i))
+        host = g.get("socks5_listen") or "127.0.0.1"
+        lines.append(f"{name} = socks5, {host}, {port}")
+    # 分组级配置中，代理名称可能与分组名称相同；策略组必须使用独立名称，
+    # 否则 Surge 会把同名代理与策略组解析为冲突项。
+    policy_name = "SubWeaver"
+    lines += ["", "[Proxy Group]", policy_name + " = select, " + (", ".join(names) if names else "DIRECT"),
+              "", "[Rule]", "FINAL," + policy_name, ""]
+    return "\n".join(lines)
 
 
 def regen_outputs(data):
@@ -1753,6 +1837,11 @@ def api_add_sub():
     url = (s.get("url") or "").strip()
     if not url.startswith(("http://", "https://")):
         return jsonify({"error": "请填写有效的订阅 URL"}), 400
+    existing = next((x for x in data["subscriptions"]
+                     if (x.get("url") or "").strip() == url), None)
+    if existing:
+        return jsonify({"error": "该订阅地址已存在", "duplicate": True,
+                        "subscription": existing}), 409
     sub = {"id": secrets.token_hex(4), "name": (s.get("name") or "未命名订阅").strip(),
            "url": url, "last_update": None, "node_count": 0, "error": None}
     data["subscriptions"].append(sub)
@@ -1779,10 +1868,15 @@ def api_refresh_sub(sub_id):
         sub["error"] = str(e)
         save_data(data)
         return jsonify({"error": f"抓取失败: {e}"}), 502
+    # Never replace a healthy subscription with an empty result. Empty
+    # responses usually mean an upstream format change or transient failure.
+    if not nodes:
+        sub["error"] = "订阅返回为空，已保留上次节点"
+        save_data(data)
+        return jsonify({"error": sub["error"], "preserved": True,
+                        "node_count": int(sub.get("node_count") or 0)}), 502
+    nodes = _prepare_refreshed_nodes(data, sub_id, nodes)
     data["nodes"] = [n for n in data["nodes"] if n.get("source") != sub_id]
-    for n in nodes:
-        n.update({"id": secrets.token_hex(4), "source": sub_id,
-                  "source_name": sub["name"], "alive": None, "latency_ms": None})
     data["nodes"].extend(nodes)
     sub.update({"last_update": time.strftime("%Y-%m-%d %H:%M"),
                 "node_count": len(nodes), "error": None})
@@ -1799,10 +1893,13 @@ def api_refresh_all_subs():
     for sub in list(data["subscriptions"]):
         try:
             nodes = fetch_subscription(sub["url"])
+            if not nodes:
+                sub["error"] = "订阅返回为空，已保留上次节点"
+                summary.append({"name": sub["name"], "nodes": int(sub.get("node_count") or 0),
+                                "ok": False, "error": sub["error"], "preserved": True})
+                continue
+            nodes = _prepare_refreshed_nodes(data, sub["id"], nodes)
             data["nodes"] = [n for n in data["nodes"] if n.get("source") != sub["id"]]
-            for n in nodes:
-                n.update({"id": secrets.token_hex(4), "source": sub["id"],
-                          "source_name": sub["name"], "alive": None, "latency_ms": None})
             data["nodes"].extend(nodes)
             sub.update({"last_update": time.strftime("%Y-%m-%d %H:%M"),
                         "node_count": len(nodes), "error": None})
@@ -1874,11 +1971,16 @@ def api_del_sub(sub_id):
 def api_groups():
     data = load_data()
     out = []
-    for g in data["groups"]:
+    for index, g in enumerate(data["groups"]):
         nodes = group_member_nodes(data, g)
         sname = next((s["name"] for s in STRATEGIES if s["key"] == g["strategy"]),
                      g["strategy"])
+        socks_enabled = g.get("socks5_enabled", True)
+        socks_port = int(g.get("socks5_port") or (18080 + index))
+        socks_listen = g.get("socks5_listen") or "127.0.0.1"
         out.append({**g, "node_count": len(nodes), "strategy_name": sname,
+                    "socks5_enabled": socks_enabled,
+                    "socks5_address": f"{socks_listen}:{socks_port}" if socks_enabled else "",
                     **_probe_counts(nodes)})
     return jsonify({"groups": out, "strategies": STRATEGIES})
 
@@ -1891,14 +1993,33 @@ def api_add_group():
     name = (g.get("name") or "").strip()
     if not name:
         return jsonify({"error": "请填写分组名称"}), 400
+    try:
+        requested_port = int(g.get("socks5_port") or 0)
+    except (TypeError, ValueError):
+        return jsonify({"error": "SOCKS5 端口必须是数字"}), 400
+    if requested_port and not 1024 <= requested_port <= 65535:
+        return jsonify({"error": "SOCKS5 端口范围应为 1024-65535"}), 400
+    used_ports = {int(x.get("socks5_port") or 18080 + i)
+                  for i, x in enumerate(data["groups"])
+                  if x.get("socks5_enabled", True)}
+    effective_port = requested_port or 18080 + len(data["groups"])
+    if effective_port in used_ports:
+        return jsonify({"error": f"SOCKS5 端口 {effective_port} 已被其他分组使用"}), 409
     group = {"id": secrets.token_hex(4), "name": name,
              "strategy": g.get("strategy") or "manual",
              "members": g.get("members") or [],
              "auto_sources": g.get("auto_sources") or [],
-             "skip_dead": bool(g.get("skip_dead", False))}
+             "skip_dead": bool(g.get("skip_dead", False)),
+             "socks5_enabled": bool(g.get("socks5_enabled", True)),
+             "socks5_listen": g.get("socks5_listen") or "127.0.0.1",
+             "socks5_port": requested_port,
+             "test_url": g.get("test_url") or "",
+             "interval": int(g.get("interval") or 0),
+             "tolerance": int(g.get("tolerance") or 50)}
     data["groups"].append(group)
     save_data(data)
     regen_outputs(data)
+    refresh_mihomo_if_running(data)
     return jsonify({"ok": True, "group": group})
 
 
@@ -1910,12 +2031,42 @@ def api_update_group(gid):
     if not g:
         return jsonify({"error": "分组不存在"}), 404
     payload = request.json or {}
-    for k in ("name", "strategy", "members", "auto_sources", "skip_dead"):
+    for k in ("name", "strategy", "members", "auto_sources", "active_node", "skip_dead",
+              "socks5_enabled", "socks5_listen", "socks5_port", "test_url",
+              "interval", "tolerance"):
         if k in payload:
             g[k] = payload[k]
+    if "members" in payload:
+        valid = {n.get("id") for n in data["nodes"]}
+        g["members"] = list(dict.fromkeys(
+            mid for mid in (payload.get("members") or []) if mid in valid))
+    if "auto_sources" in payload:
+        valid_sources = {s.get("id") for s in data["subscriptions"]}
+        g["auto_sources"] = list(dict.fromkeys(
+            sid for sid in (payload.get("auto_sources") or []) if sid in valid_sources))
+    if "active_node" in payload:
+        valid_node_ids = {n.get("id") for n in group_member_nodes(data, g)}
+        g["active_node"] = payload.get("active_node") if payload.get("active_node") in valid_node_ids else ""
+    if "socks5_port" in payload:
+        try:
+            port = int(payload.get("socks5_port") or 0)
+        except (TypeError, ValueError):
+            return jsonify({"error": "SOCKS5 端口必须是数字"}), 400
+        if port and not 1024 <= port <= 65535:
+            return jsonify({"error": "SOCKS5 端口范围应为 1024-65535"}), 400
+    if g.get("socks5_enabled", True):
+        group_index = next((i for i, x in enumerate(data["groups"])
+                            if x["id"] == gid), 0)
+        effective_port = int(g.get("socks5_port") or (18080 + group_index))
+        used = {int(x.get("socks5_port") or (18080 + i))
+                for i, x in enumerate(data["groups"])
+                if x["id"] != gid and x.get("socks5_enabled", True)}
+        if effective_port in used:
+            return jsonify({"error": f"SOCKS5 端口 {effective_port} 已被其他分组使用"}), 409
     g["strategy"] = g.get("strategy") or "manual"
     save_data(data)
     regen_outputs(data)
+    refresh_mihomo_if_running(data)
     return jsonify({"ok": True, "group": g})
 
 
@@ -1929,6 +2080,7 @@ def api_del_group(gid):
     data["groups"] = [x for x in data["groups"] if x["id"] != gid]
     save_data(data)
     regen_outputs(data)
+    refresh_mihomo_if_running(data)
     return jsonify({"ok": True})
 
 
@@ -1955,16 +2107,65 @@ def api_group_preview(gid):
 @app.route("/api/health/check", methods=["POST"])
 @auth_required
 def api_health_check():
-    ids = (request.json or {}).get("node_ids") or None
+    payload = request.json or {}
+    ids = payload.get("node_ids") or None
+    if payload.get("source_id"):
+        ids = [n["id"] for n in load_data()["nodes"]
+               if n.get("source") == payload["source_id"]]
     return jsonify({"ok": True, **run_health_check(ids)})
 
 
 @app.route("/api/health/deep", methods=["POST"])
 @auth_required
 def api_health_deep():
-    ids = (request.json or {}).get("node_ids") or None
+    payload = request.json or {}
+    ids = payload.get("node_ids") or None
+    if payload.get("source_id"):
+        ids = [n["id"] for n in load_data()["nodes"]
+               if n.get("source") == payload["source_id"]]
     r = deep_check(ids)
     return jsonify(r), (200 if r.get("ok", True) else 500)
+
+
+# ---------------------------------------------------------- mihomo gateway
+@app.route("/api/mihomo/status")
+@auth_required
+def api_mihomo_status():
+    return jsonify(_mihomo.status())
+
+
+@app.route("/api/mihomo/config/preview")
+@auth_required
+def api_mihomo_config_preview():
+    data = load_data()
+    return jsonify({"config": build_mihomo_config(data), "status": _mihomo.status()})
+
+
+@app.route("/api/mihomo/reload", methods=["POST"])
+@auth_required
+def api_mihomo_reload():
+    data = load_data()
+    config = build_mihomo_config(data)
+    _mihomo.write_config(config)
+    ok = _mihomo.start()
+    return jsonify({"ok": ok, "status": _mihomo.status(),
+                    "listeners": config.get("listeners", [])}), (200 if ok else 503)
+
+
+@app.route("/api/mihomo/stop", methods=["POST"])
+@auth_required
+def api_mihomo_stop():
+    _mihomo.stop()
+    return jsonify({"ok": True, "status": _mihomo.status()})
+
+
+@app.route("/api/surge/gateway.conf")
+@auth_required
+def api_surge_gateway_conf():
+    return build_surge_gateway_conf(load_data()), 200, {
+        "Content-Type": "text/plain; charset=utf-8",
+        "Content-Disposition": "attachment; filename=subweaver-mihomo.conf",
+    }
 
 
 @app.route("/api/settings", methods=["GET", "PUT"])
@@ -2036,6 +2237,11 @@ def _sr_import_link(url, remark):
             f"?remark={urllib.parse.quote(remark or 'subscription')}")
 
 
+def _surge_import_link(url):
+    """Surge iOS/macOS 一键安装远程配置。"""
+    return "surge:///install-config?url=" + urllib.parse.quote(url, safe="")
+
+
 def _type_counts(nodes):
     counts = {}
     for n in nodes:
@@ -2062,6 +2268,9 @@ def _publish_payload():
             "sub_url": sub_url,
             "raw_url": f"{base}/sub/{token}/g/{g['id']}.raw",
             "import_url": _sr_import_link(sub_url, g["name"]),
+            "surge_url": f"{base}/sub/{token}/g/{g['id']}.surge.conf",
+            "surge_import_url": _surge_import_link(
+                f"{base}/sub/{token}/g/{g['id']}.surge.conf"),
             "slug": _publish_slug(g["name"], i),
         })
     st = data["settings"] or {}
@@ -2072,6 +2281,9 @@ def _publish_payload():
             "raw_url": f"{base}/sub/{token}/sub.raw",
             "acl_url": f"{base}/sub/{token}/rules.acl",
             "conf_url": f"{base}/sub/{token}/shadowrocket.conf",
+            "surge_gateway_url": f"{base}/surge/{token}/gateway.conf",
+            "surge_gateway_import_url": _surge_import_link(
+                f"{base}/surge/{token}/gateway.conf"),
             "import_url": _sr_import_link(f"{base}/sub/{token}/sub.txt", "全部节点"),
             "sr_final_group": final_group["id"] if final_group else "",
             "sr_udp_relay": bool(st.get("sr_udp_relay", True)),
@@ -2165,6 +2377,29 @@ def public_group_raw(token, gid):
     return _sub_response(uris, encode=False)
 
 
+@app.route("/sub/<token>/g/<gid>.surge.conf")
+def public_group_surge_conf(token, gid):
+    data = _check_token(token)
+    g = next((x for x in data["groups"] if x["id"] == gid), None)
+    if not g:
+        abort(404)
+    return build_surge_gateway_conf(data, g), 200, {
+        "Content-Type": "text/plain; charset=utf-8",
+        "Content-Disposition": f"inline; filename={_publish_slug(g['name'], 0)}.surge.conf",
+        "Cache-Control": "no-cache",
+    }
+
+
+@app.route("/surge/<token>/gateway.conf")
+def public_surge_gateway_conf(token):
+    data = _check_token(token)
+    return build_surge_gateway_conf(data), 200, {
+        "Content-Type": "text/plain; charset=utf-8",
+        "Content-Disposition": "inline; filename=subweaver-gateway.conf",
+        "Cache-Control": "no-cache",
+    }
+
+
 @app.route("/sub/<token>/groups")
 def public_group_index(token):
     data = _check_token(token)
@@ -2251,6 +2486,14 @@ if __name__ == "__main__":
     host = os.environ.get("HOST", "127.0.0.1")
     _d = load_data()
     regen_outputs(_d)
+    # mihomo 是本服务的数据面：Web 服务启动时同步生成并拉起，避免只启动
+    # Flask 而页面显示的 SOCKS5 端口实际没有进程监听。
+    try:
+        _mihomo.write_config(build_mihomo_config(_d))
+        if not _mihomo.start():
+            print(f"[mihomo] 启动失败：{_mihomo.last_error}", flush=True)
+    except Exception as exc:
+        print(f"[mihomo] 配置/启动异常：{exc}", flush=True)
     threading.Thread(target=health_worker, daemon=True).start()
     print(f"\n  配置页面: http://{host if host != '0.0.0.0' else '127.0.0.1'}:{port}\n")
     app.run(host=host, port=port, debug=False, threaded=True)

@@ -191,7 +191,7 @@ html{scroll-behavior:smooth}
 dialog[open]{animation:dlgIn .28s var(--ease)}
 dialog::backdrop{animation:fadeIn .24s ease}
 section[id^="tab-"]{animation:fadeUp .32s var(--ease)}
-/* 展开内容（分组成员列表 / 来源节点网格）出现时的阻尼感 */
+/* 展开内容（分组节点列表 / 来源节点网格）出现时的阻尼感 */
 .nsec .ngrid,#gvRows{animation:fadeUp .3s var(--ease)}
 /* 按压反馈：可点的都会轻轻缩一下 */
 .nav button,.tabbar button,.src-chip{transition:transform .18s var(--ease),background .16s,color .16s,box-shadow .16s}
@@ -623,7 +623,7 @@ dialog.wide .dlg-body{max-height:66vh}
 .mgrp .all{margin-left:auto;font-weight:520;font-size:11px;color:var(--accent-2);
   cursor:pointer;user-select:none;padding:2px 7px;border-radius:6px}
 .mgrp .all:hover{background:rgba(0,122,255,.1)}
-/* ---------- 穿梭框（成员挑选） ---------- */
+/* ---------- 穿梭框（节点挑选） ---------- */
 .tfx{display:grid;grid-template-columns:1fr 40px 1fr;gap:0;flex:1;min-height:0}
 .tfcol{display:flex;flex-direction:column;min-width:0;border:1px solid var(--hair);
   border-radius:var(--r-sm);background:rgba(255,255,255,.6);overflow:hidden}
@@ -763,6 +763,103 @@ dialog.wide .dlg-body{max-height:66vh}
   .rrow .rops{opacity:1}
   .ncard:hover{box-shadow:none}
 }
+/* ============================ liquid glass refresh ============================ */
+:root{
+  --accent:#6d5dfc;--accent-2:#5847e8;--accent-soft:rgba(109,93,252,.11);--accent-line:rgba(109,93,252,.32);
+  --text:#20202a;--text-2:rgba(42,42,54,.7);--text-3:rgba(58,58,72,.48);
+  --ok:#26966a;--ok-soft:rgba(52,199,145,.13);
+  --glass:rgba(255,255,255,.58);--glass-strong:rgba(255,255,255,.78);--glass-input:rgba(255,255,255,.68);
+  --edge:rgba(71,69,115,.1);--hair:rgba(71,69,115,.11);--hair-2:rgba(71,69,115,.17);
+  --hi:inset 0 1px 0 rgba(255,255,255,.96);
+}
+body{background-color:#f5f6fb;background-image:radial-gradient(900px 520px at 8% -12%,rgba(130,119,255,.18),transparent 65%),radial-gradient(760px 460px at 94% 4%,rgba(105,205,238,.14),transparent 62%),radial-gradient(680px 520px at 55% 112%,rgba(255,190,153,.13),transparent 64%),linear-gradient(180deg,#fafbfe 0%,#f1f2f8 100%)}
+body::before,body::after{content:"";position:fixed;z-index:-1;pointer-events:none;border-radius:50%;filter:blur(8px);opacity:.72}
+body::before{width:520px;height:520px;left:-180px;top:12%;background:radial-gradient(circle,rgba(142,126,255,.2),rgba(142,126,255,0) 68%)}
+body::after{width:620px;height:620px;right:-220px;bottom:-180px;background:radial-gradient(circle,rgba(111,211,232,.18),rgba(111,211,232,0) 68%)}
+.sidebar{background:linear-gradient(180deg,rgba(255,255,255,.64),rgba(255,255,255,.3));border-right-color:rgba(255,255,255,.72);box-shadow:inset -1px 0 rgba(120,140,180,.08),12px 0 40px -30px rgba(40,65,110,.45)}
+.page-head{background:rgba(247,248,251,.58);border-bottom:1px solid rgba(255,255,255,.72);box-shadow:0 10px 28px -28px rgba(35,55,95,.55)}
+.card,.gcard,.ncard,.sub-card,.publish-card,.rule-card{background:linear-gradient(145deg,rgba(255,255,255,.72),rgba(255,255,255,.42));backdrop-filter:blur(24px) saturate(170%);-webkit-backdrop-filter:blur(24px) saturate(170%);border-color:rgba(255,255,255,.7);box-shadow:0 1px 0 rgba(255,255,255,.9) inset,0 18px 45px -30px rgba(35,55,95,.34),0 2px 8px rgba(35,55,95,.06)}
+.card:hover,.gcard:hover,.ncard:hover,.sub-card:hover{border-color:rgba(255,255,255,.95);box-shadow:0 1px 0 rgba(255,255,255,.95) inset,0 22px 50px -30px rgba(35,55,95,.42),0 4px 12px rgba(35,55,95,.08)}
+.gcard,.ncard{border-radius:20px}
+.card-head{border-bottom-color:rgba(100,115,145,.12)}
+.btn.ghost,input[type=text],input[type=password],input[type=number],select,textarea{background:rgba(255,255,255,.55);border-color:rgba(255,255,255,.8);box-shadow:0 1px 0 rgba(255,255,255,.95) inset,0 3px 10px rgba(35,55,95,.06)}
+.btn.ghost:hover{background:rgba(255,255,255,.82)}
+.btn:not(.ghost):not(.danger){background:linear-gradient(135deg,#8275ff,#6555ed 58%,#5544d6);box-shadow:0 1px 0 rgba(255,255,255,.42) inset,0 8px 20px -10px rgba(92,76,220,.58)}
+.btn:not(.ghost):not(.danger):hover{filter:brightness(1.05);box-shadow:0 1px 0 rgba(255,255,255,.55) inset,0 12px 24px -10px rgba(92,76,220,.62)}
+dialog{background:linear-gradient(145deg,rgba(255,255,255,.82),rgba(246,249,255,.7));backdrop-filter:blur(30px) saturate(180%);-webkit-backdrop-filter:blur(30px) saturate(180%);border-color:rgba(255,255,255,.82);box-shadow:0 1px 0 rgba(255,255,255,.95) inset,0 30px 90px -30px rgba(35,55,95,.5)}
+dialog::backdrop{background:rgba(35,50,80,.18);backdrop-filter:blur(8px)}
+.brand-mark{background:linear-gradient(145deg,#887dff,#5e50df 58%,#4033b7);box-shadow:0 10px 22px -10px rgba(77,61,190,.58),inset 0 1px 0 rgba(255,255,255,.58)}
+.nav button.active{background:linear-gradient(135deg,rgba(255,255,255,.95),rgba(231,241,255,.78));box-shadow:0 1px 0 rgba(255,255,255,.95) inset,0 8px 20px -14px rgba(0,100,220,.55)}
+@media(max-width:760px){.content{padding-left:16px;padding-right:16px}.page-head{margin-left:-16px;margin-right:-16px;padding-left:16px;padding-right:16px}.sidebar{background:rgba(255,255,255,.72)}}
+/* 产品化收敛：保留玻璃质感，但降低装饰噪声与重阴影，优先保证信息可读性和性能 */
+body{background-image:linear-gradient(180deg,#f7f8fb 0%,#eef1f6 100%)}
+body::before,body::after{display:none}
+.card,.gcard,.ncard,.sub-card,.publish-card,.rule-card{backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:0 1px 0 rgba(255,255,255,.9) inset,0 8px 24px -22px rgba(35,55,95,.32)}
+.card:hover,.gcard:hover,.ncard:hover,.sub-card:hover{box-shadow:0 1px 0 rgba(255,255,255,.95) inset,0 10px 26px -22px rgba(35,55,95,.38)}
+.btn:not(.ghost):not(.danger){background:#6555ed;box-shadow:0 5px 14px -10px rgba(92,76,220,.55)}
+.btn:not(.ghost):not(.danger):hover{filter:brightness(1.03);box-shadow:0 7px 16px -10px rgba(92,76,220,.58)}
+dialog{backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
+/* Apple 系统设置式视觉：中性、克制、以内容为中心 */
+:root{--accent:#007aff;--accent-2:#006ee6;--accent-soft:rgba(0,122,255,.08);--accent-line:rgba(0,122,255,.24);--text:#1d1d1f;--text-2:#6e6e73;--text-3:#8e8e93;--edge:rgba(60,60,67,.12);--hair:rgba(60,60,67,.1)}
+body{background:#f5f5f7;background-image:none;color:var(--text);letter-spacing:-.01em}
+.sidebar{background:rgba(250,250,252,.82);border-right:1px solid rgba(60,60,67,.12);box-shadow:none}
+.brand-mark{background:#1d1d1f;box-shadow:none;border-radius:12px}
+.brand-text b{font-weight:650;letter-spacing:-.02em}
+.page-head{background:rgba(245,245,247,.86);border-bottom:1px solid rgba(60,60,67,.1);box-shadow:none}
+.card,.gcard,.ncard,.sub-card,.publish-card,.rule-card{background:rgba(255,255,255,.78);border:1px solid rgba(60,60,67,.1);border-radius:14px;box-shadow:0 1px 2px rgba(0,0,0,.025);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
+.card:hover,.gcard:hover,.ncard:hover,.sub-card:hover{border-color:rgba(60,60,67,.16);box-shadow:0 3px 10px rgba(0,0,0,.045)}
+.btn:not(.ghost):not(.danger){background:#007aff;box-shadow:none;border-radius:9px}
+.btn:not(.ghost):not(.danger):hover{background:#006ee6;filter:none;box-shadow:none}
+.btn.ghost,input[type=text],input[type=password],input[type=number],select,textarea{background:rgba(255,255,255,.72);border-color:rgba(60,60,67,.16);box-shadow:none;border-radius:9px}
+.btn.ghost:hover{background:#f2f2f7}
+.nav button.active{background:rgba(0,122,255,.1);color:#007aff;box-shadow:none}
+.nav button{border-radius:9px}
+dialog{background:rgba(250,250,252,.94);border:1px solid rgba(60,60,67,.16);border-radius:18px;box-shadow:0 20px 60px rgba(0,0,0,.16);backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px)}
+.section-title h2,.card-head h2{letter-spacing:-.025em}
+.prow{border-bottom-color:rgba(60,60,67,.1)}
+.prow-url code{background:#f5f5f7;border:1px solid rgba(60,60,67,.1);color:#6e6e73}
+@media(max-width:760px){body{background:#f5f5f7}.card,.gcard,.ncard,.sub-card,.publish-card,.rule-card{border-radius:12px}.page-head{background:rgba(245,245,247,.92)}}
+/* Apple 风格第二层：柔和色彩、半透明层次与明确的主次关系 */
+body{background-color:#f4f6fb;background-image:radial-gradient(720px 420px at 86% -8%,rgba(167,185,255,.2),transparent 66%),radial-gradient(620px 420px at 12% 6%,rgba(210,198,255,.16),transparent 68%),linear-gradient(180deg,#f9faff 0%,#f1f3f8 100%)}
+.sidebar{background:rgba(250,251,255,.68);border-right:1px solid rgba(88,96,130,.12);backdrop-filter:blur(26px) saturate(150%);-webkit-backdrop-filter:blur(26px) saturate(150%)}
+.page-head{background:rgba(248,249,254,.62);border-bottom-color:rgba(88,96,130,.1);backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px)}
+.brand-mark{background:linear-gradient(145deg,#34333b,#17171b);box-shadow:0 6px 16px rgba(42,42,55,.16)}
+.nav button{color:#686a75}
+.nav button.active{background:linear-gradient(135deg,rgba(222,232,255,.9),rgba(235,226,255,.72));color:#1769e8;box-shadow:0 5px 16px rgba(70,111,210,.08),inset 0 1px rgba(255,255,255,.9)}
+.nav button.active svg{stroke:#1769e8}
+.card,.gcard,.ncard,.sub-card,.publish-card,.rule-card{background:linear-gradient(145deg,rgba(255,255,255,.84),rgba(247,249,255,.66));border-color:rgba(255,255,255,.88);box-shadow:0 1px 0 rgba(255,255,255,.95) inset,0 12px 30px -24px rgba(59,73,120,.32)}
+.card:hover,.gcard:hover,.ncard:hover,.sub-card:hover{border-color:rgba(255,255,255,.98);box-shadow:0 1px 0 rgba(255,255,255,.98) inset,0 16px 34px -24px rgba(59,73,120,.38)}
+.card-head,.section-title{border-color:rgba(88,96,130,.1)}
+.btn:not(.ghost):not(.danger){background:linear-gradient(135deg,#1684ff,#086ee8 65%,#5a55e8);box-shadow:0 7px 18px -12px rgba(30,105,225,.65)}
+.btn:not(.ghost):not(.danger):hover{background:linear-gradient(135deg,#2990ff,#1678ef 65%,#6a64ee);box-shadow:0 9px 20px -12px rgba(30,105,225,.7)}
+.btn.ghost,input[type=text],input[type=password],input[type=number],select,textarea{background:rgba(255,255,255,.66);border-color:rgba(100,108,145,.15);box-shadow:0 1px 0 rgba(255,255,255,.9) inset}
+.btn.ghost:hover{background:rgba(255,255,255,.92);border-color:rgba(100,108,145,.24)}
+.nfbar .chip,.filter-chip{background:rgba(255,255,255,.62);border-color:rgba(100,108,145,.16)}
+.nfbar .chip.active,.filter-chip.active{background:linear-gradient(135deg,rgba(220,233,255,.95),rgba(235,227,255,.86));border-color:rgba(74,135,239,.34);color:#1769e8;box-shadow:0 4px 12px rgba(70,111,210,.1)}
+.prow-url code{background:rgba(244,246,252,.86);border-color:rgba(100,108,145,.12)}
+.side-foot{border-top-color:rgba(88,96,130,.12)}
+.page-desc{display:none}
+.page-head{padding-top:17px;padding-bottom:15px}
+@media(max-width:760px){body{background-image:linear-gradient(180deg,#f9faff,#f1f3f8)}.sidebar{background:rgba(250,251,255,.86)}.card,.gcard,.ncard,.sub-card,.publish-card,.rule-card{box-shadow:0 5px 20px -18px rgba(59,73,120,.35)}}
+/* 控件规格：Apple 风格不是缩小，而是让每个动作有清晰的触控面积 */
+.btn{height:38px;padding:0 17px;border-radius:11px;font-size:13px;font-weight:600;gap:7px}
+.btn.sm{height:34px;padding:0 14px;border-radius:10px;font-size:12.5px}
+.btn.icon{width:34px;height:34px;padding:0}
+input[type=text],input[type=password],input[type=number],select{height:40px;padding:0 13px;border-radius:11px;font-size:13px}
+textarea{padding:13px 14px;border-radius:11px}
+.search{max-width:360px}
+.search input{height:42px;padding-left:38px;border-radius:13px}
+.search > svg{left:14px}
+.search .clr{right:9px;width:22px;height:22px;border-radius:7px}
+.card-head{padding:18px 22px}
+.card-body{padding:20px 22px}
+.card-foot{padding:15px 22px}
+.head-actions,.card-head .right,.prow-ops{gap:10px}
+.nfbar .chip,.filter-chip{min-height:32px;padding:0 14px;border-radius:999px;font-size:12.5px}
+.prow{padding:17px 22px}
+.prow-url{min-height:40px;padding:8px 12px;border-radius:11px}
+.side-foot .btn{height:38px}
+@media(max-width:760px){.btn{height:42px;padding:0 16px}.btn.sm{height:38px}.btn.icon{width:38px;height:38px}input[type=text],input[type=password],input[type=number],select{height:44px}.search input{height:46px}.card-head{padding:16px}.card-body{padding:16px}.card-foot{padding:13px 16px}.prow{padding:15px 16px}.prow-ops{width:100%}.prow-ops .btn{flex:1}.nfbar .chip,.filter-chip{min-height:36px}}
 </style>
 </head>
 <body>
@@ -950,7 +1047,7 @@ dialog.wide .dlg-body{max-height:66vh}
             <button class="btn ghost sm" onclick="resetRules()">撤回修改</button>
           </div>
         </div>
-        <div class="card-foot">
+        <div class="card-foot" style="display:none">
           <button class="btn" onclick="saveRules()">保存规则</button>
           <span class="spacer" style="flex:1"></span>
           <span class="dim" id="ruleFootHint">动作可选 <code class="chip">走默认出口</code>
@@ -963,42 +1060,47 @@ dialog.wide .dlg-body{max-height:66vh}
     <!-- ================= 发布 ================= -->
     <section id="tab-publish" style="display:none">
       <div class="card">
-        <div class="card-head">
-          <h2>Shadowrocket 订阅</h2>
-          <span class="hint">iPhone 用 Safari 打开本页点「导入」直达；其他客户端复制链接手动添加</span>
+          <div class="card-head">
+            <h2>Shadowrocket</h2>
+            <span class="hint">完整配置包含全部节点、分组、策略和规则；普通订阅仅包含节点</span>
         </div>
         <div class="card-body">
           <div class="prow">
             <div class="prow-main">
               <div class="prow-title">
-                <span class="gname" style="font-size:13.5px">全部节点</span>
-                <span class="gmeta">节点池聚合订阅</span>
+                <span class="gname" style="font-size:13.5px">全量配置</span>
+                <span class="gmeta">全部节点 · 分组 · 策略 · 规则</span>
               </div>
-              <div class="prow-url"><code id="pubSubUrl"></code></div>
+              <div class="prow-url"><code id="pubConfUrl"></code></div>
             </div>
             <div class="prow-ops">
-              <a class="btn sm" id="pubAllImport" href="#" onclick="return srClick(event)">导入</a>
-              <button class="btn ghost sm" onclick="copyBtn(this, state.publish.sub_url)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg>复制链接</button>
+              <a class="btn sm" id="srFullImport" href="#" data-url="" onclick="return srClick(event)">一键导入</a>
+              <button class="btn ghost sm" onclick="copyBtn(this, state.publish.conf_url)">复制链接</button>
             </div>
           </div>
-          <div id="pubGroupCard"></div>
         </div>
-        <div class="card-foot">
-          <button class="btn danger sm" onclick="rotateToken()">重置 Token</button>
-          <span class="dim">订阅链接包含节点信息，请勿公开分享；重置后旧链接立即失效，客户端需重新添加</span>
+      </div>
+
+      <div class="card" style="margin-top:14px">
+        <div class="card-head">
+          <h2>Surge 中转</h2>
+          <span class="hint">导入后使用本机 mihomo SOCKS5 分组；适合 Surge 作为主力客户端</span>
+        </div>
+        <div class="card-body">
+          <div class="prow">
+            <div class="prow-main"><div class="prow-title"><span class="gname" style="font-size:13.5px">全部中转分组</span><span class="gmeta">包含所有已启用 SOCKS5 的分组</span></div>
+              <div class="prow-url"><code id="surgeGatewayUrl"></code></div></div>
+            <div class="prow-ops"><a class="btn sm" id="surgeGatewayImport" href="#" data-url="" onclick="return surgeClick(event)">一键导入</a><button class="btn ghost sm" onclick="copyBtn(this,$('surgeGatewayUrl').textContent)">复制链接</button></div>
+          </div>
         </div>
       </div>
 
       <details class="card" id="pubAdv">
-        <summary>高级：完整配置（分组 + 分流规则）、参数与使用说明</summary>
+        <summary>高级设置</summary>
         <div class="card-body">
-          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-            <a class="btn ghost" id="srConfBtn" href="#" onclick="return srClick(event)">一键导入完整配置（节点 + 分组 + 规则）</a>
-            <span class="dim">Shadowrocket 底部「配置」→ + 导入；更新订阅即同步</span>
-          </div>
-          <div class="urlrow" style="margin-top:14px">
-            <span class="tag">配置</span><span class="u" id="pubConfUrl"></span>
-            <button class="btn ghost sm" onclick="copyBtn(this, state.publish.conf_url)">复制</button>
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px">
+            <button class="btn danger sm" onclick="rotateToken()">重置 Token</button>
+            <span class="dim">重置后旧链接立即失效</span>
           </div>
           <div class="urlrow">
             <span class="tag">规则</span><span class="u" id="pubAclUrl"></span>
@@ -1154,7 +1256,7 @@ dialog.wide .dlg-body{max-height:66vh}
     </div>
   </div>
   <div class="dlg-foot">
-    <button class="btn ghost" id="gvMembersBtn" onclick="gvMembers()">成员</button>
+    <button class="btn ghost" id="gvMembersBtn" onclick="gvMembers()">节点</button>
     <button class="btn ghost" id="gvEdit" onclick="gvEdit()">编辑</button>
     <button class="btn ghost" id="gvDel" onclick="gvDel()" style="color:var(--danger)">删除</button>
     <span class="spacer"></span>
@@ -1163,7 +1265,7 @@ dialog.wide .dlg-body{max-height:66vh}
 </dialog>
 
 <dialog id="memberDlg" class="wide">
-  <div class="dlg-head"><h3 id="memberTitle">选择成员节点</h3>
+  <div class="dlg-head"><h3 id="memberTitle">选择分组节点</h3>
     <p id="memberHint">左侧按订阅源分组；点击节点加入右侧，右侧顺序即「手动顺序」策略下的输出顺序</p></div>
   <div class="dlg-body" style="overflow:hidden;display:flex;flex-direction:column;gap:12px">
     <div class="search" style="max-width:none" id="memberSearchWrap">
@@ -1195,7 +1297,7 @@ dialog.wide .dlg-body{max-height:66vh}
     <button class="btn ghost sm" onclick="selectAllMembers()">全选</button>
     <button class="btn ghost sm" onclick="clearMembers()">清空</button>
     <button class="btn ghost" onclick="closeDlg('memberDlg')">取消</button>
-    <button class="btn" onclick="saveMembers()">保存成员</button>
+    <button class="btn" onclick="saveMembers()">保存节点</button>
   </div>
 </dialog>
 
@@ -1216,6 +1318,15 @@ dialog.wide .dlg-body{max-height:66vh}
       <label class="switch" title="关闭后不显示登录页，打开页面直接进入（适合仅本机使用）">
         <input type="checkbox" id="requireLogin" onchange="onRequireLoginChange()">登录密码</label>
       <button class="btn ghost sm" id="btnChangePw" style="display:none;margin-left:10px" onclick="changePassword()">改密码</button>
+    </div>
+    <div class="field" style="border-top:1px solid var(--line);padding-top:12px">
+      <label>mihomo 网关</label>
+      <span class="dim" id="mihomoStatus">状态读取中…</span>
+      <div style="margin-top:8px;display:flex;gap:8px">
+        <button class="btn ghost sm" onclick="reloadMihomo()">启动 / 重载</button>
+        <button class="btn ghost sm" onclick="stopMihomo()">停止</button>
+        <a class="btn ghost sm" href="/api/surge/gateway.conf" target="_blank">下载 Surge 配置</a>
+      </div>
     </div>
   </div>
   <div class="dlg-foot">
@@ -1246,6 +1357,15 @@ dialog.wide .dlg-body{max-height:66vh}
     <div class="field">
       <label>订阅源自动归组（可选）</label>
       <div class="src-chips" id="ng_sources"></div>
+    </div>
+    <div class="field" style="border-top:1px solid var(--line);padding-top:12px">
+      <label class="switch"><input type="checkbox" id="ng_socks" checked>为该分组提供 mihomo SOCKS5</label>
+      <div class="npick" style="margin-top:8px">
+        <input type="text" id="ng_listen" value="127.0.0.1" placeholder="监听地址" style="width:145px">
+        <input type="number" id="ng_port" min="1" max="65535" placeholder="自动端口" style="width:110px">
+        <input type="number" id="ng_interval" min="10" placeholder="测速间隔秒" style="width:120px">
+      </div>
+      <span class="dim">Surge 可使用该端口；监听 0.0.0.0 会暴露到局域网</span>
     </div>
   </div>
   <div class="dlg-foot">
@@ -1671,7 +1791,10 @@ function enterMain() {
 
 /* ---------------- tabs ---------------- */
 function switchTab(name) {
+  if (!TAB_META[name]) name = 'nodes';
   state.tab = name;
+  try { localStorage.setItem('subweaver.activeTab', name); } catch (_) {}
+  if (location.hash !== '#' + name) history.replaceState(null, '', '#' + name);
   document.querySelectorAll('.nav button, .tabbar button').forEach(b =>
     b.classList.toggle('active', b.dataset.tab === name));
   ['nodes','groups','rules','publish'].forEach(t =>
@@ -1708,7 +1831,11 @@ async function loadAll() {
   await loadGroups();     // 先拿到分组，规则表单的「动作」下拉才能列出策略组
   await Promise.all([loadNodes(), loadRules(), loadSettings(), loadPublish()]);
   renderGroupSelectors();
-  switchTab('nodes');
+  let initialTab = location.hash.replace(/^#/, '');
+  if (!TAB_META[initialTab]) {
+    try { initialTab = localStorage.getItem('subweaver.activeTab') || 'nodes'; } catch (_) { initialTab = 'nodes'; }
+  }
+  switchTab(TAB_META[initialTab] ? initialTab : 'nodes');
 }
 
 function updateKpis() {
@@ -1815,6 +1942,7 @@ function renderNodeTable() {
         ${sub ? `<span class="nsurl" data-url="${esc(sub.url)}" title="${esc(sub.url)} — 点击复制完整地址"
           onclick="event.stopPropagation(); copyText(this.dataset.url)">${esc(sub.url)}</span>` : ''}
         <span class="nsops" onclick="event.stopPropagation()">
+          ${sub ? iconBtn('test', `testSource('${src}', this)`, '测速该订阅下全部节点') : ''}
           ${iconBtn('refresh', `refreshSub('${src}', this)`, '刷新该订阅')}
           ${iconBtn('edit', `openSubDlg('${src}')`, '编辑订阅源（改地址 / 名称 / 归组）')}
           ${iconBtn('trash', `delSub('${src}')`, '删除该订阅（连同其节点）')}
@@ -2096,9 +2224,29 @@ async function refreshSub(id, btn) {
   try {
     const r = await api(`/api/subs/${id}/refresh`, {method: 'POST'});
     toast(`抓取成功：${r.node_count} 个节点`);
-    loadSubs(); loadNodes(); loadGroups(); loadPublish();
-  } catch (e) { toast(e.error || '刷新失败', false); loadSubs(); }
+    await Promise.all([loadSubs(), loadNodes(), loadGroups(), loadPublish()]);
+  } catch (e) {
+    toast(e.error || '刷新失败，已保留原节点', false);
+    await Promise.all([loadSubs(), loadNodes(), loadGroups(), loadPublish()]);
+  }
   if (btn) { btn.classList.remove('spinning'); btn.disabled = false; }
+}
+async function testSource(sourceId, btn) {
+  if (btn) { btn.classList.add('spinning'); btn.disabled = true; }
+  const nodes = state.nodes.filter(n => n.source === sourceId);
+  if (!nodes.length) {
+    if (btn) { btn.classList.remove('spinning'); btn.disabled = false; }
+    return toast('该订阅当前没有节点', false);
+  }
+  toast(`正在测速该订阅的 ${nodes.length} 个节点…`);
+  try {
+    const r = await api('/api/health/deep', {method: 'POST', body: {source_id: sourceId}});
+    const byId = Object.fromEntries((r.results || []).map(x => [x.id, x]));
+    state.nodes.forEach(n => { if (byId[n.id]) Object.assign(n, byId[n.id]); });
+    renderNodeTable(); await loadGroups();
+    toast(`测速完成：${r.alive} 个可用 / ${r.dead} 个不可用`);
+  } catch (e) { toast(e.error || '测速失败', false); }
+  finally { if (btn) { btn.classList.remove('spinning'); btn.disabled = false; } }
 }
 async function refreshAllSubs() {
   if (!state.subs.length) return toast('暂无订阅源', false);
@@ -2108,7 +2256,7 @@ async function refreshAllSubs() {
     const ok = r.summary.filter(x => x.ok).length;
     const total = r.summary.reduce((a, x) => a + x.nodes, 0);
     toast(`完成：${ok}/${r.summary.length} 个订阅刷新成功，共 ${total} 个节点`);
-    loadSubs(); loadNodes(); loadGroups(); loadPublish();
+    await Promise.all([loadSubs(), loadNodes(), loadGroups(), loadPublish()]);
   } catch (e) { toast(e.error || '刷新失败', false); }
 }
 async function delSub(id) {
@@ -2127,7 +2275,7 @@ async function loadGroups() {
   renderGroups();
   updateKpis();
 }
-/* 分组实际包含的节点（与后端 group_member_nodes 一致）：默认组=全部，其余=显式成员 + auto_sources */
+/* 分组实际包含的节点（与后端 group_member_nodes 一致）：默认组=全部，其余=显式节点 + auto_sources */
 function groupNodes(g) {
   if (g.is_default) return state.nodes;
   const auto = new Set(g.auto_sources || []);
@@ -2162,18 +2310,40 @@ function renderGroups() {
     const tested = alive + dead;
     const sumCls = !tested ? 'dim' : (alive ? 'ok' : 'bad');
     const sumTxt = tested ? `${alive} 可用` : '未测速';
+    const socksAddress = g.socks5_address || ('127.0.0.1:' + (18080 + state.groups.indexOf(g)));
     return `<div class="gcard" onclick="openGroupView('${g.id}')"
         title="查看分组 · ${esc(g.name)}">
       <div class="ncard-t"><span class="nname">${esc(g.name)}</span>
         <span class="lat ${sumCls}">${sumTxt}</span></div>
       <div class="ncard-s"><span class="dim">${nodes.length} 节点 · ${esc(strat.name || g.strategy)}${g.is_default ? ' · 默认' : ''}</span>
         <span class="nops" onclick="event.stopPropagation()">
-          ${iconBtn('users', `openMembers('${g.id}')`, '手动挑选成员节点')}
+          ${iconBtn('users', `openMembers('${g.id}')`, '手动挑选分组节点')}
           ${g.is_default ? '' : iconBtn('edit', `openGroupDlg('${g.id}')`, '编辑分组')
             + iconBtn('trash', `delGroup('${g.id}')`, '删除分组', 'danger')}
         </span></div>
+      <div class="ncard-s" style="margin-top:7px">
+        <span class="dim">${g.socks5_enabled !== false ? 'SOCKS5 · ' + esc(socksAddress) : 'SOCKS5 未启用'}</span>
+        ${g.socks5_enabled !== false ? `<button class="btn ghost sm" data-addr="socks5://${esc(socksAddress)}" onclick="event.stopPropagation();copyGroupSocks(this)">复制</button>` : ''}
+      </div>
+      ${g.strategy === 'manual' && nodes.length ? `<div class="ncard-s active-node-row" onclick="event.stopPropagation()">
+        <span class="dim">当前节点</span>
+        <select class="group-node-select" onchange="setActiveNode('${g.id}', this.value)" aria-label="选择当前工作节点">
+          <option value="">自动使用首个节点</option>
+          ${nodes.map(n => `<option value="${esc(n.id)}" ${g.active_node === n.id ? 'selected' : ''}>${esc(n.name)}</option>`).join('')}
+        </select>
+      </div>` : ''}
     </div>`;
   }).join('');
+}
+function copyGroupSocks(btn) { copyText(btn.dataset.addr); }
+async function setActiveNode(gid, nodeId) {
+  try {
+    await api('/api/groups/' + gid, {method: 'PUT', body: {active_node: nodeId}});
+    const g = state.groups.find(x => x.id === gid);
+    if (g) g.active_node = nodeId;
+    toast(nodeId ? '当前工作节点已切换' : '已恢复自动使用首个节点');
+    await Promise.all([loadGroups(), loadPublish()]);
+  } catch (e) { toast(e.error || '切换工作节点失败', false); }
 }
 /* 分组详情弹框：组内节点延迟列表 + 订阅链接 + 全部操作 */
 function openGroupView(gid) {
@@ -2192,7 +2362,7 @@ function openGroupView(gid) {
     return `<div class="srow" title="${esc(n.name)} · ${esc(n.server)}:${n.port}">
       <span class="sn">${esc(n.name)}</span>
       <span class="lat ${p.cls}">${esc(p.text)}</span></div>`;
-  }).join('') || '<div class="srow more"><span class="sn">该分组暂无节点，点下方「成员」挑选</span></div>';
+  }).join('') || '<div class="srow more"><span class="sn">该分组暂无节点，点击下方「节点」进行选择</span></div>';
   $('gvSkip').checked = !!g.skip_dead;
   $('gvUrl').style.display = url ? '' : 'none';
   if (url) {
@@ -2223,6 +2393,10 @@ function openGroupDlg(gid) {
     $('ng_name').value = g.name;
     $('ng_strategy').value = g.strategy;
     $('ng_skip').checked = !!g.skip_dead;
+    $('ng_socks').checked = g.socks5_enabled !== false;
+    $('ng_listen').value = g.socks5_listen || '127.0.0.1';
+    $('ng_port').value = g.socks5_port || '';
+    $('ng_interval').value = g.interval || '';
     state.newMembers = [...(g.members || [])];
     renderGroupSelectors();
     /* 订阅源自动归组 chips 回显 */
@@ -2235,6 +2409,10 @@ function openGroupDlg(gid) {
     $('ng_name').value = '';
     $('ng_strategy').value = (state.strategies[0] || {}).key || '';
     $('ng_skip').checked = false;
+    $('ng_socks').checked = true;
+    $('ng_listen').value = '127.0.0.1';
+    $('ng_port').value = '';
+    $('ng_interval').value = '';
     state.newMembers = [];
     renderGroupSelectors();
     document.querySelectorAll('#ng_sources .src-chip').forEach(b => b.classList.remove('on'));
@@ -2249,7 +2427,10 @@ async function addGroup() {
   if (!name) return toast('请填写分组名称', false);
   const auto_sources = [...$('ng_sources').querySelectorAll('.src-chip.on')].map(b => b.dataset.id);
   const body = {name, strategy: $('ng_strategy').value,
-    members: state.newMembers || [], auto_sources, skip_dead: $('ng_skip').checked};
+    members: state.newMembers || [], auto_sources, skip_dead: $('ng_skip').checked,
+    socks5_enabled: $('ng_socks').checked, socks5_listen: $('ng_listen').value.trim(),
+    socks5_port: parseInt($('ng_port').value || '0', 10),
+    interval: parseInt($('ng_interval').value || '0', 10)};
   try {
     if (state.editingGroupDlg) {
       await api('/api/groups/' + state.editingGroupDlg, {method: 'PUT', body});
@@ -2289,9 +2470,14 @@ function openMembers(gid) {
   state.editingGroup = state.memberMode === 'create' ? null : gid;
   const g = state.groups.find(x => x.id === gid);
   if (state.memberMode === 'edit' && !g) return;
-  state.memberDraft = [...currentMemberIds()];
+  const availableIds = new Set(state.nodes.map(n => n.id));
+  const before = currentMemberIds();
+  state.memberDraft = before.filter(id => availableIds.has(id));
+  if (state.memberDraft.length !== before.length) {
+    toast(`已自动忽略 ${before.length - state.memberDraft.length} 个已失效节点引用`, false);
+  }
   $('memberTitle').textContent = state.memberMode === 'create'
-    ? '挑选成员节点 · 新分组' : `选择成员节点 · ${g.name}`;
+    ? '挑选分组节点 · 新分组' : `选择分组节点 · ${g.name}`;
   $('memberSearch').value = '';
   $('memberDlg').showModal();
   renderMemberPicker();
@@ -2422,12 +2608,19 @@ function selectAllMembers() { addVisibleMembers(); }
 function clearMembers() { state.memberDraft = []; renderMemberPicker(); }
 async function saveMembers() {
   const ids = [...(state.memberDraft || [])];
-  closeDlg('memberDlg');
   if (state.memberMode === 'create') {
+    closeDlg('memberDlg');
     state.newMembers = ids;
     updateNewMemberNote();
   } else {
-    await updateGroup(state.editingGroup, {members: ids});
+    try {
+      await api('/api/groups/' + state.editingGroup, {method: 'PUT', body: {members: ids}});
+      closeDlg('memberDlg');
+      toast(`已保存 ${ids.length} 个分组节点`);
+      await loadGroups(); await loadPublish();
+    } catch (e) {
+      toast(e.error || '节点保存失败', false);
+    }
   }
 }
 function updateNewMemberNote() {
@@ -2465,8 +2658,23 @@ async function runSpeedTest() {
   btns.forEach(b => { if (b._t) b.innerHTML = b._t; b.disabled = false; });
 }
 /* 设置弹框：自动测速 / 登录密码 */
+async function loadMihomoStatus() {
+  try {
+    const d = await api('/api/mihomo/status');
+    $('mihomoStatus').textContent = d.running ? `运行中（PID ${d.pid}）` : `未运行${d.last_error ? '：' + d.last_error : ''}`;
+    $('mihomoStatus').className = d.running ? 'ok' : 'dim';
+  } catch (e) {}
+}
+async function reloadMihomo() {
+  try { const d = await api('/api/mihomo/reload', {method:'POST', body:{}}); toast('mihomo 已启动并加载最新配置'); loadMihomoStatus(); }
+  catch (e) { toast(e.error || 'mihomo 启动失败', false); loadMihomoStatus(); }
+}
+async function stopMihomo() {
+  try { await api('/api/mihomo/stop', {method:'POST', body:{}}); toast('mihomo 已停止'); loadMihomoStatus(); }
+  catch (e) { toast(e.error || '停止失败', false); }
+}
 function openSettings() {
-  $('settingsDlg').showModal();
+  $('settingsDlg').showModal(); loadMihomoStatus();
 }
 async function loadSettings() {  const d = await api('/api/settings');
   const settings = d.settings;
@@ -2846,14 +3054,19 @@ function resetRules() {
 /* ---------------- publish ---------------- */
 async function loadPublish() {
   state.publish = await api('/api/publish');
-  $('pubSubUrl').textContent = state.publish.sub_url;
   $('pubAclUrl').textContent = state.publish.acl_url;
   $('pubConfUrl').textContent = state.publish.conf_url || '';
+  const gatewayUrl = state.publish.surge_gateway_url
+    || `${location.origin}/surge/${state.publish.token}/gateway.conf`;
+  const gatewayImport = state.publish.surge_gateway_import_url
+    || `surge:///install-config?url=${encodeURIComponent(gatewayUrl)}`;
+  $('surgeGatewayUrl').textContent = gatewayUrl;
+  $('surgeGatewayImport').href = gatewayImport;
+  $('surgeGatewayImport').dataset.url = gatewayUrl;
   $('groupsJsonUrl').textContent = state.publish.groups_url;
   $('groupsJsonLink').href = state.publish.groups_url;
   renderSrImport();
   renderDns();
-  renderPublishGroups();
   renderGroups();
 }
 /* Shadowrocket 一键导入：shadowrocket://add/sub://<base64(url)>?remark=名称 */
@@ -2861,19 +3074,34 @@ function srScheme(url, remark) {
   const b64 = btoa(unescape(encodeURIComponent(url)));
   return `shadowrocket://add/sub://${b64}?remark=${encodeURIComponent(remark)}`;
 }
+function srConfigScheme(url) {
+  // Shadowrocket 的 config/add 约定是把远程 URL 直接放在路径中；
+  // encodeURIComponent 会把协议和路径全部编码，部分 macOS 版本不会还原。
+  return `shadowrocket://config/add/${encodeURI(url)}`;
+}
 /* 导入链接点击：iOS / 触屏设备放行跳转 Shadowrocket，桌面端提示后拦截 */
 function srClick(ev) {
   const ios = /iPhone|iPad|iPod/i.test(navigator.userAgent)
     || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   if (ios) return true;
   ev.preventDefault();
-  toast('请在 iPhone 上用 Safari 打开本页后点按「导入」；或复制链接到手机');
+  const url = ev.currentTarget.dataset.url;
+  if (url) copyText(url); else toast('请复制订阅链接到 Shadowrocket 添加', false);
+  return false;
+}
+function surgeClick(ev) {
+  const ios = /iPhone|iPad|iPod/i.test(navigator.userAgent)
+    || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  if (ios) return true;
+  ev.preventDefault();
+  const url = ev.currentTarget.dataset.url;
+  if (url) copyText(url); else toast('请复制配置链接到 Surge 导入', false);
   return false;
 }
 function renderSrImport() {
   if (!state.publish.conf_url) return;
-  $('pubAllImport').href = srScheme(state.publish.sub_url, '配置中心 · 全部节点');
-  $('srConfBtn').href = srScheme(state.publish.conf_url, '配置中心 · 完整配置');
+  $('srFullImport').href = srConfigScheme(state.publish.conf_url);
+  $('srFullImport').dataset.url = state.publish.conf_url;
   const sel = $('srFinal');
   const cur = state.publish.sr_final_group || '';
   sel.innerHTML = `<option value="" ${cur ? '' : 'selected'}>首个分组（自动）</option>` +
@@ -2981,7 +3209,8 @@ function typeBadges(counts) {
 }
 function renderPublishGroups() {
   const groups = state.publish.groups || [];
-  $('pubGroupCard').innerHTML = groups.length ? groups.map(g => `
+  $('pubGroupCard').innerHTML = groups.length ? groups.map(g => {
+    return `
     <div class="prow">
       <div class="prow-main">
         <div class="prow-title">
@@ -2993,10 +3222,11 @@ function renderPublishGroups() {
         <div class="prow-url"><code>${esc(g.sub_url)}</code></div>
       </div>
       <div class="prow-ops">
-        <a class="btn sm" href="${esc(g.import_url || srScheme(g.sub_url, g.name))}" onclick="return srClick(event)">导入</a>
+        <a class="btn sm" data-url="${esc(g.sub_url)}" href="${esc(g.import_url || srScheme(g.sub_url, g.name))}" onclick="return srClick(event)">Shadowrocket</a>
         <button class="btn ghost sm" onclick="copyBtn(this, '${g.sub_url}')">${SVG.copy}复制链接</button>
       </div>
-    </div>`).join('') : `
+    </div>`;
+  }).join('') : `
     <div class="empty">
       <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round"><rect x="3" y="3" width="7" height="7" rx="1.6"/><rect x="14" y="3" width="7" height="7" rx="1.6"/><rect x="3" y="14" width="7" height="7" rx="1.6"/><rect x="14" y="14" width="7" height="7" rx="1.6"/></svg>
       <div>还没有分组，先到「分组与策略」页新建一个</div>
@@ -3005,9 +3235,8 @@ function renderPublishGroups() {
 async function rotateToken() {
   if (!confirm('重置后旧订阅链接立即失效，客户端需重新添加，确定？')) return;
   state.publish = await api('/api/publish/rotate', {method: 'POST'});
-  $('pubSubUrl').textContent = state.publish.sub_url;
   $('pubAclUrl').textContent = state.publish.acl_url;
-  renderPublishGroups(); renderGroups();
+  renderGroups();
   toast('Token 已重置');
 }
 async function openPreview(url, title) {
