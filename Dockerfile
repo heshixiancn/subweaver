@@ -22,7 +22,6 @@ RUN apt-get update \
     && curl -fsSL "https://github.com/MetaCubeX/mihomo/releases/download/v${MIHOMO_VERSION}/mihomo-linux-${MIHOMO_ARCH}-v${MIHOMO_VERSION}.gz" \
        | gzip -d > /usr/local/bin/mihomo \
     && chmod 0755 /usr/local/bin/mihomo \
-    && apt-get purge -y --auto-remove curl gzip \
     && rm -rf /var/lib/apt/lists/*
 
 # 依赖层单独缓存
