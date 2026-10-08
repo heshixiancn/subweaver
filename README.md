@@ -44,6 +44,7 @@ python app.py            # 或 ./start.sh（本机）/ ./start.sh lan（局域�
 docker build -t subweaver .
 docker run -d --name subweaver \
   -p 5017:5017 \
+  -p 18080-18089:18080-18089 \
   -v "$PWD/data:/app/data" \
   subweaver
 ```
@@ -54,7 +55,15 @@ docker run -d --name subweaver \
 docker compose up -d
 ```
 
-也可以用 GitHub Actions 构建好的镜像（见下），把 compose 里的 `build: .` 换成 `image:`。
+镜像**自带 mihomo 内核**（构建时按目标架构从官方 Releases 下载），因此容器内的
+「分组 → SOCKS5 出口」和真实协议测速开箱可用。两点注意：
+
+- **必须发布 18080 起的 SOCKS 端口**，否则容器里的网关虽然跑着，外部连不上。
+  只给本机用可收紧成 `-p 127.0.0.1:18080-18089:18080-18089`。
+- 容器内分组监听固定为 `0.0.0.0`（`SS_SOCKS_LISTEN`）。界面/复制出来的地址需要你
+  填宿主机的可达地址 —— 在 compose 里设 `SS_SOCKS_ADVERTISE` 即可（见下）。
+
+也可以用 GitHub Actions 构建好的镜像（见下），把 compose 里的 `build:` 换成 `image:`。
 
 ## 配置（环境变量）
 
@@ -65,7 +74,10 @@ docker compose up -d
 | `SS_DATA_DIR` | 项目目录（镜像内 `/app/data`） | 数据目录：`shadowrocket.db` 与订阅产物都在这里 |
 | `SS_DB_FILE` | `<SS_DATA_DIR>/shadowrocket.db` | 单独指定数据库文件 |
 | `SS_OUTPUT_DIR` | `<SS_DATA_DIR>/output` | 生成的订阅/配置文件目录 |
-| `SS_MIHOMO` | `bin/mihomo` | mihomo 内核路径 |
+| `SS_MIHOMO` | `bin/mihomo`（镜像内 `/usr/local/bin/mihomo`） | mihomo 内核路径 |
+| `SS_MIHOMO_API_PORT` | `9090` | 网关的 mihomo REST 管理端口（仅本机） |
+| `SS_SOCKS_LISTEN` | `127.0.0.1`（镜像内 `0.0.0.0`） | 分组 SOCKS5 默认监听地址 |
+| `SS_SOCKS_ADVERTISE` | 空 | 界面上展示给客户端的地址；容器部署时填宿主机 IP/域名 |
 
 ## 数据与迁移
 
@@ -76,12 +88,17 @@ docker compose up -d
 - **不要提交/公开** `shadowrocket.db` 与 `data.json*`（含全部节点凭据与密码哈希），
   `.gitignore` 已排除。
 
-## 真实测速（可选）
+## 真实测速与分组 SOCKS5（mihomo）
 
-仓库不含 mihomo 二进制。本地使用放一份到 `bin/mihomo`（或用 `SS_MIHOMO` 指定）即可启用
-内核真实握手测速；没有内核时测速自动降级为端口层探测并在界面如实标注。
+测速和「分组 → SOCKS5 出口」都由 mihomo 内核提供：
 
-下载：https://github.com/MetaCubeX/mihomo/releases （注意与系统架构匹配）
+- **本地运行**：仓库不含二进制，放一份到 `bin/mihomo`（或用 `SS_MIHOMO` 指定）即可
+  启用内核真实握手测速；没有内核时测速自动降级为端口层探测并在界面如实标注。
+- **Docker / 镜像**：无需手动准备，Dockerfile 会按 `TARGETARCH` 自动下载对应架构的
+  mihomo 并装到 `/usr/local/bin/mihomo`。想升级内核改构建参数即可：
+  `docker build --build-arg MIHOMO_VERSION=1.19.33 .`
+
+下载地址：https://github.com/MetaCubeX/mihomo/releases （本机使用时注意与系统架构匹配）
 
 ## GitHub Actions 构建镜像
 
@@ -92,6 +109,9 @@ docker compose up -d
 ```bash
 docker pull ghcr.io/<你的用户名>/subweaver:latest
 ```
+
+构建期会从 GitHub Releases 拉取 mihomo 内核打进镜像（按 `TARGETARCH` 自动选架构），
+所以产出的镜像**自带代理与测速能力**，不依赖仓库里的 `bin/`。
 
 ## 安全提示
 

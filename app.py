@@ -6,7 +6,7 @@ Shadowsocks Web 配置管理器
   1. 多个远程订阅聚合（抓取 → 解析 → 合并）
   2. 节点分组（显式成员 + 按订阅源自动归组）
   3. 负载均衡策略：手动顺序 / 延迟优先 / 轮询 / 随机 / 故障转移
-  4. 服务端健康检查（TCP 测速），自动剔除不可达节点
+  4. 服务端健康检查（TCP 测速），标记节点可达性供策略参考
   5. 每个分组生成独立订阅链接，客户端刷新即更新
 """
 import base64
@@ -50,6 +50,12 @@ _mihomo_binary = os.environ.get("SS_MIHOMO", "bin/mihomo")
 if not os.path.isabs(_mihomo_binary):
     _mihomo_binary = os.path.join(BASE, _mihomo_binary)
 _mihomo = MihomoManager(_mihomo_binary, MIHOMO_DIR)
+
+# 分组 SOCKS5 的默认监听地址。容器里必须用 SS_SOCKS_LISTEN=0.0.0.0：
+# Docker 的端口转发打到容器 IP，绑回环的话即使 -p 发布了端口，外面也连不进来。
+DEFAULT_SOCKS_LISTEN = os.environ.get("SS_SOCKS_LISTEN") or "127.0.0.1"
+# 容器部署时，界面/复制出来的地址不可能是容器内网 IP，用这个显式指定宿主机地址。
+SOCKS_ADVERTISE = (os.environ.get("SS_SOCKS_ADVERTISE") or "").strip()
 
 _lock = threading.RLock()
 _rr_counters = {}          # 轮询策略内存计数器 {group_id: n}
@@ -162,7 +168,7 @@ DEFAULT_DATA = {
     "subscriptions": [],
     "groups": [
         {"id": "g_default", "name": "全部节点", "strategy": "latency",
-         "members": [], "auto_sources": [], "skip_dead": True, "is_default": True},
+         "members": [], "auto_sources": [], "is_default": True},
     ],
     "settings": {"auto_health": False, "health_interval_minutes": 30, "health_timeout": 3,
                  "sr_final_group": "", "sr_udp_relay": True,
@@ -207,9 +213,9 @@ def load_data():
             g.setdefault("members", [])
             g.setdefault("auto_sources", [])
             g.setdefault("strategy", "manual")
-            g.setdefault("skip_dead", False)
+            g.pop("skip_dead", None)        # 「自动剔除不可用」功能已按用户要求移除，顺带清掉历史残留
             g.setdefault("socks5_enabled", True)
-            g.setdefault("socks5_listen", "127.0.0.1")
+            g.setdefault("socks5_listen", DEFAULT_SOCKS_LISTEN)
             g.setdefault("socks5_port", 0)
             g.setdefault("test_url", "")
             g.setdefault("interval", 0)
@@ -439,6 +445,50 @@ def _probe_counts(nodes):
     return {"alive_count": alive, "dead_count": dead,
             "unknown_count": len(nodes) - alive - dead,
             "port_only_count": port_only, "tested_count": probed}
+
+
+_LAN_HOST_CACHE = {"host": "", "at": 0.0}
+
+
+def _lan_host():
+    """本机对局域网暴露的地址（走默认路由的那张网卡）。
+
+    通配绑定 0.0.0.0 只表示「监听所有网卡」，不能当客户端地址用；
+    展示和复制时要换成真实网卡 IP。UDP connect 不会真的发包，只让内核选路，
+    因此在离线环境下失败也安全（返回空由调用方兜底）。
+    """
+    now = time.time()
+    if _LAN_HOST_CACHE["host"] and now - _LAN_HOST_CACHE["at"] < 30:
+        return _LAN_HOST_CACHE["host"]
+    host = ""
+    try:
+        probe = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        try:
+            probe.connect(("8.8.8.8", 80))
+            host = probe.getsockname()[0]
+        finally:
+            probe.close()
+    except OSError:
+        host = ""
+    if host.startswith("127."):
+        host = ""
+    _LAN_HOST_CACHE.update({"host": host, "at": now})
+    return host
+
+
+def _client_host(listen):
+    """把绑定地址翻译成「客户端该填哪个地址」。
+
+    通配（0.0.0.0 / :: / *）→ SS_SOCKS_ADVERTISE（容器部署时指定），
+    否则本机局域网 IP；拿不到就退回 127.0.0.1。
+    其余情况原样返回（显式绑定的地址本来就是可连接的）。
+    """
+    listen = str(listen or "").strip()
+    if listen in ("0.0.0.0", "::", "*", "[::]", ""):
+        if SOCKS_ADVERTISE:
+            return SOCKS_ADVERTISE
+        return _lan_host() or "127.0.0.1"
+    return listen
 
 
 # ------------------------------------------------- deep check（真实协议测速）
@@ -870,7 +920,6 @@ def group_member_nodes(data, group):
 def apply_strategy(nodes, group):
     """按分组策略排序/过滤，返回 (节点列表, 说明文本)"""
     strategy = group.get("strategy", "manual")
-    skip_dead = group.get("skip_dead", False)
     total = len(nodes)
     note = ""
 
@@ -905,12 +954,6 @@ def apply_strategy(nodes, group):
     else:
         note = "手动顺序"
 
-    if skip_dead and strategy != "failover":
-        before = len(nodes)
-        alive = [n for n in nodes if n.get("alive") is not False]
-        nodes = alive if alive else nodes
-        if before != len(nodes):
-            note += f"，剔除 {before - len(nodes)} 个不可达节点"
     return nodes, note
 
 
@@ -1152,8 +1195,6 @@ def build_shadowrocket_conf(data):
         head, _ = SR_STRATEGY_MAP.get(g.get("strategy", "manual"),
                                       SR_STRATEGY_MAP["manual"])
         members = group_member_nodes(data, g)
-        if g.get("skip_dead"):
-            members = [m for m in members if m.get("alive") is not False]
         mnames = [node_names[m["id"]] for m in members] or ["DIRECT"]
         line = f"{gid_names[g['id']]} = {head}, " + ", ".join(mnames)
         if head in ("url-test", "fallback", "load-balance"):
@@ -1241,10 +1282,13 @@ def build_surge_gateway_conf(data, only_group=None):
             continue
         if not g.get("socks5_enabled", True):
             continue
+        if not group_member_nodes(data, g):
+            continue            # 空分组没有监听器，写进配置只会是个连不上的死端口
         name = _sr_policy_name(g.get("name"), used)
         names.append(name)
         port = int(g.get("socks5_port") or (18080 + i))
-        host = g.get("socks5_listen") or "127.0.0.1"
+        # 客户端要填的是能连上的地址：通配绑定（0.0.0.0）换成局域网 IP
+        host = _client_host(g.get("socks5_listen"))
         lines.append(f"{name} = socks5, {host}, {port}")
     # 分组级配置中，代理名称可能与分组名称相同；策略组必须使用独立名称，
     # 否则 Surge 会把同名代理与策略组解析为冲突项。
@@ -1971,16 +2015,23 @@ def api_del_sub(sub_id):
 def api_groups():
     data = load_data()
     out = []
+    live_ids = {n["id"] for n in data["nodes"]}
     for index, g in enumerate(data["groups"]):
         nodes = group_member_nodes(data, g)
         sname = next((s["name"] for s in STRATEGIES if s["key"] == g["strategy"]),
                      g["strategy"])
         socks_enabled = g.get("socks5_enabled", True)
         socks_port = int(g.get("socks5_port") or (18080 + index))
-        socks_listen = g.get("socks5_listen") or "127.0.0.1"
+        socks_listen = g.get("socks5_listen") or DEFAULT_SOCKS_LISTEN
+        # 空分组不会生成监听器（build_config 里直接 continue），此时给出地址会误导
+        socks_active = bool(socks_enabled and nodes)
+        dangling = len([m for m in (g.get("members") or []) if m not in live_ids])
         out.append({**g, "node_count": len(nodes), "strategy_name": sname,
                     "socks5_enabled": socks_enabled,
-                    "socks5_address": f"{socks_listen}:{socks_port}" if socks_enabled else "",
+                    "socks5_active": socks_active,
+                    "member_dangling": dangling,
+                    # 展示/复制用客户端实际能连的地址：通配绑定换成局域网 IP
+                    "socks5_address": f"{_client_host(socks_listen)}:{socks_port}" if socks_active else "",
                     **_probe_counts(nodes)})
     return jsonify({"groups": out, "strategies": STRATEGIES})
 
@@ -2009,9 +2060,8 @@ def api_add_group():
              "strategy": g.get("strategy") or "manual",
              "members": g.get("members") or [],
              "auto_sources": g.get("auto_sources") or [],
-             "skip_dead": bool(g.get("skip_dead", False)),
              "socks5_enabled": bool(g.get("socks5_enabled", True)),
-             "socks5_listen": g.get("socks5_listen") or "127.0.0.1",
+             "socks5_listen": g.get("socks5_listen") or DEFAULT_SOCKS_LISTEN,
              "socks5_port": requested_port,
              "test_url": g.get("test_url") or "",
              "interval": int(g.get("interval") or 0),
@@ -2031,7 +2081,7 @@ def api_update_group(gid):
     if not g:
         return jsonify({"error": "分组不存在"}), 404
     payload = request.json or {}
-    for k in ("name", "strategy", "members", "auto_sources", "active_node", "skip_dead",
+    for k in ("name", "strategy", "members", "auto_sources", "active_node",
               "socks5_enabled", "socks5_listen", "socks5_port", "test_url",
               "interval", "tolerance"):
         if k in payload:

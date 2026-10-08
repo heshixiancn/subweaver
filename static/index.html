@@ -1250,10 +1250,6 @@ textarea{padding:13px 14px;border-radius:11px}
       <code id="gvUrlCode"></code>
     </div>
     <div id="gvRows"></div>
-    <div class="gfoot">
-      <label class="switch"><input type="checkbox" id="gvSkip"
-        onchange="updateGroup(state.gvGroup, {skip_dead: this.checked})">自动剔除不可用</label>
-    </div>
   </div>
   <div class="dlg-foot">
     <button class="btn ghost" id="gvMembersBtn" onclick="gvMembers()">节点</button>
@@ -1369,7 +1365,6 @@ textarea{padding:13px 14px;border-radius:11px}
     </div>
   </div>
   <div class="dlg-foot">
-    <label class="switch"><input type="checkbox" id="ng_skip">自动剔除不可用节点</label>
     <span class="spacer"></span>
     <button class="btn ghost" onclick="closeDlg('groupDlg')">取消</button>
     <button class="btn" id="groupSubmitBtn" onclick="addGroup()">创建分组</button>
@@ -2311,6 +2306,11 @@ function renderGroups() {
     const sumCls = !tested ? 'dim' : (alive ? 'ok' : 'bad');
     const sumTxt = tested ? `${alive} 可用` : '未测速';
     const socksAddress = g.socks5_address || ('127.0.0.1:' + (18080 + state.groups.indexOf(g)));
+    const socksLive = g.socks5_enabled !== false && g.socks5_active !== false;
+    const socksHint = g.socks5_enabled === false ? 'SOCKS5 未启用'
+      : (!nodes.length
+        ? `SOCKS5 未生成 · 分组没有节点${g.member_dangling ? `（${g.member_dangling} 个成员已失效，订阅刷新后节点 ID 变了）` : ''}`
+        : 'SOCKS5 · ' + esc(socksAddress));
     return `<div class="gcard" onclick="openGroupView('${g.id}')"
         title="查看分组 · ${esc(g.name)}">
       <div class="ncard-t"><span class="nname">${esc(g.name)}</span>
@@ -2322,8 +2322,8 @@ function renderGroups() {
             + iconBtn('trash', `delGroup('${g.id}')`, '删除分组', 'danger')}
         </span></div>
       <div class="ncard-s" style="margin-top:7px">
-        <span class="dim">${g.socks5_enabled !== false ? 'SOCKS5 · ' + esc(socksAddress) : 'SOCKS5 未启用'}</span>
-        ${g.socks5_enabled !== false ? `<button class="btn ghost sm" data-addr="socks5://${esc(socksAddress)}" onclick="event.stopPropagation();copyGroupSocks(this)">复制</button>` : ''}
+        <span class="dim${socksLive ? '' : ' bad'}">${socksHint}</span>
+        ${socksLive ? `<button class="btn ghost sm" data-addr="socks5://${esc(socksAddress)}" onclick="event.stopPropagation();copyGroupSocks(this)">复制</button>` : ''}
       </div>
       ${g.strategy === 'manual' && nodes.length ? `<div class="ncard-s active-node-row" onclick="event.stopPropagation()">
         <span class="dim">当前节点</span>
@@ -2363,7 +2363,6 @@ function openGroupView(gid) {
       <span class="sn">${esc(n.name)}</span>
       <span class="lat ${p.cls}">${esc(p.text)}</span></div>`;
   }).join('') || '<div class="srow more"><span class="sn">该分组暂无节点，点击下方「节点」进行选择</span></div>';
-  $('gvSkip').checked = !!g.skip_dead;
   $('gvUrl').style.display = url ? '' : 'none';
   if (url) {
     $('gvUrlCode').textContent = url.replace(/^https?:\/\/[^/]+/, '');
@@ -2392,7 +2391,6 @@ function openGroupDlg(gid) {
     $('groupDlgDesc').textContent = '修改后点「保存修改」立即生效；该分组的订阅链接内容会随之更新';
     $('ng_name').value = g.name;
     $('ng_strategy').value = g.strategy;
-    $('ng_skip').checked = !!g.skip_dead;
     $('ng_socks').checked = g.socks5_enabled !== false;
     $('ng_listen').value = g.socks5_listen || '127.0.0.1';
     $('ng_port').value = g.socks5_port || '';
@@ -2408,7 +2406,6 @@ function openGroupDlg(gid) {
     $('groupDlgDesc').textContent = '分组决定「哪些节点」以及「以什么顺序」输出；手动挑选与订阅源自动归组可叠加';
     $('ng_name').value = '';
     $('ng_strategy').value = (state.strategies[0] || {}).key || '';
-    $('ng_skip').checked = false;
     $('ng_socks').checked = true;
     $('ng_listen').value = '127.0.0.1';
     $('ng_port').value = '';
@@ -2427,7 +2424,7 @@ async function addGroup() {
   if (!name) return toast('请填写分组名称', false);
   const auto_sources = [...$('ng_sources').querySelectorAll('.src-chip.on')].map(b => b.dataset.id);
   const body = {name, strategy: $('ng_strategy').value,
-    members: state.newMembers || [], auto_sources, skip_dead: $('ng_skip').checked,
+    members: state.newMembers || [], auto_sources,
     socks5_enabled: $('ng_socks').checked, socks5_listen: $('ng_listen').value.trim(),
     socks5_port: parseInt($('ng_port').value || '0', 10),
     interval: parseInt($('ng_interval').value || '0', 10)};
@@ -2441,7 +2438,7 @@ async function addGroup() {
     }
     closeDlg('groupDlg');
     state.editingGroupDlg = null;
-    $('ng_name').value = ''; $('ng_skip').checked = false;
+    $('ng_name').value = '';
     state.newMembers = []; updateNewMemberNote();
     await loadGroups(); await loadPublish(); loadSubs(); renderGroupSelectors();
   } catch (e) { toast(e.error || '保存失败', false); }

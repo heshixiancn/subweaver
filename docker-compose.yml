@@ -1,14 +1,25 @@
 services:
   subweaver:
-    build: .
-    # 或者用 GitHub Actions 构建好的镜像：
-    # image: ghcr.io/<你的用户名>/subweaver:latest
+    build:
+      context: .
+      # 内嵌 mihomo 内核的版本（构建期从 GitHub Releases 下载，改这里可升级内核）
+      args:
+        MIHOMO_VERSION: 1.19.32
+    # 或者直接用 GitHub Actions 构建好的镜像：
+    # image: ghcr.io/heshixiancn/subweaver:latest
     container_name: subweaver
     ports:
+      # Web 配置界面
       - "5017:5017"
+      # 分组 SOCKS5 出口（默认 18080 起，每组一个）。少了这段，
+      # 容器里的 mihomo 网关虽然跑着，宿主机/局域网连不上代理端口。
+      # 只给本机用可以收紧成 "127.0.0.1:18080-18089:18080-18089"
+      - "18080-18089:18080-18089"
     volumes:
       # 数据（SQLite + 订阅产物）持久化到宿主机 ./data
       - ./data:/app/data
     environment:
       TZ: Asia/Shanghai
+      # 分组监听地址：容器内必须是 0.0.0.0，否则端口映射转发不进来
+      SS_SOCKS_LISTEN: 0.0.0.0
     restart: unless-stopped
