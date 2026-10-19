@@ -235,6 +235,22 @@ def load_data():
                 if fixed and fixed.get("sni"):
                     n["sni"] = fixed["sni"]
                     changed = True
+        # 当前节点不能只依赖易变的节点 ID：订阅刷新后若机场重排或重建记录，
+        # 仍按稳定指纹恢复用户选择，避免刷新页面/订阅后静默丢失。
+        node_by_id = {n.get("id"): n for n in data["nodes"]}
+        node_by_fp = {_node_fingerprint(n): n for n in data["nodes"]}
+        for g in data["groups"]:
+            current = node_by_id.get(g.get("active_node"))
+            fp = g.get("active_node_fingerprint") or ( _node_fingerprint(current) if current else "")
+            if current and fp != g.get("active_node_fingerprint"):
+                g["active_node_fingerprint"] = fp
+                changed = True
+            elif not current and fp and fp in node_by_fp:
+                g["active_node"] = node_by_fp[fp]["id"]
+                changed = True
+            elif g.get("active_node") and not current:
+                g["active_node"] = ""
+                changed = True
         data["surge_rules"] = data.get("surge_rules") or DEFAULT_SURGE_RULES
         if not data.get("rules"):
             data["rules"] = DEFAULT_RULES
@@ -812,17 +828,22 @@ def _deep_check_locked(node_ids=None):
                 except Exception:
                     time.sleep(0.2)
             if ready:
+                # 单节点探测要快速失败；批量测速不应被少数失联节点拖到数分钟。
+                # 贴近 Surge/Shadowrocket 的失败反馈速度：失联节点尽快淘汰，
+                # 同时给跨境 TLS 握手保留足够时间。
+                probe_timeout = min(max(float(data.get("settings", {}).get("health_timeout", 3)), 1.2), 3.0)
                 def probe_one(nid, name):
                     try:
                         r = sess.get(f"{api}/proxies/{urllib.parse.quote(name, safe='')}/delay",
-                                     params={"timeout": 5000, "url": test_url}, timeout=9)
+                                     params={"timeout": int(probe_timeout * 1000), "url": test_url},
+                                     timeout=probe_timeout + 1.0)
                         if r.ok:
                             return nid, int(r.json().get("delay") or 0)
                     except Exception:
                         pass
                     return nid, None
 
-                with concurrent.futures.ThreadPoolExecutor(max_workers=8) as ex:
+                with concurrent.futures.ThreadPoolExecutor(max_workers=48) as ex:
                     futs = [ex.submit(probe_one, n["id"], name_by_id[n["id"]])
                             for n in targets if n["id"] in name_by_id]
                     for fut in concurrent.futures.as_completed(futs):
@@ -2016,6 +2037,9 @@ def api_groups():
     data = load_data()
     out = []
     live_ids = {n["id"] for n in data["nodes"]}
+    # 仅在 mihomo 进程实际运行时宣称 SOCKS5 已监听，避免页面给出
+    # 一个看似可用、实际无人接收连接的地址。
+    mihomo_running = bool(_mihomo.status().get("running"))
     for index, g in enumerate(data["groups"]):
         nodes = group_member_nodes(data, g)
         sname = next((s["name"] for s in STRATEGIES if s["key"] == g["strategy"]),
@@ -2024,11 +2048,13 @@ def api_groups():
         socks_port = int(g.get("socks5_port") or (18080 + index))
         socks_listen = g.get("socks5_listen") or DEFAULT_SOCKS_LISTEN
         # 空分组不会生成监听器（build_config 里直接 continue），此时给出地址会误导
-        socks_active = bool(socks_enabled and nodes)
+        socks_active = bool(socks_enabled and nodes and mihomo_running)
         dangling = len([m for m in (g.get("members") or []) if m not in live_ids])
         out.append({**g, "node_count": len(nodes), "strategy_name": sname,
                     "socks5_enabled": socks_enabled,
                     "socks5_active": socks_active,
+                    "socks5_status": ("running" if socks_active else
+                                      ("stopped" if nodes and socks_enabled else "empty")),
                     "member_dangling": dangling,
                     # 展示/复制用客户端实际能连的地址：通配绑定换成局域网 IP
                     "socks5_address": f"{_client_host(socks_listen)}:{socks_port}" if socks_active else "",
@@ -2096,7 +2122,12 @@ def api_update_group(gid):
             sid for sid in (payload.get("auto_sources") or []) if sid in valid_sources))
     if "active_node" in payload:
         valid_node_ids = {n.get("id") for n in group_member_nodes(data, g)}
-        g["active_node"] = payload.get("active_node") if payload.get("active_node") in valid_node_ids else ""
+        requested = payload.get("active_node") or ""
+        if requested and requested not in valid_node_ids:
+            return jsonify({"error": "所选节点已不在当前分组，请刷新节点列表后重试"}), 409
+        g["active_node"] = requested
+        selected = next((n for n in data["nodes"] if n.get("id") == requested), None)
+        g["active_node_fingerprint"] = _node_fingerprint(selected) if selected else ""
     if "socks5_port" in payload:
         try:
             port = int(payload.get("socks5_port") or 0)

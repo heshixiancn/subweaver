@@ -526,6 +526,25 @@ details.card[open]>summary{border-bottom:1px solid var(--hair)}
 .ncard-s .dim{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
 .ncard-s .nops{display:flex;gap:2px;opacity:0;transition:opacity .16s;flex:0 0 auto}
 .ncard:hover .nops{opacity:1}
+.active-node-row{gap:7px;flex-wrap:wrap;white-space:normal}
+.active-node-row{overflow:visible!important;position:relative;z-index:4}
+.active-node-row .active-node-current{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  color:var(--text-2);font-size:11.5px;font-weight:560}
+.active-node-row .group-node-lat{flex:0 0 auto;font-size:11px;font-weight:650;font-variant-numeric:tabular-nums}
+.active-node-row .group-node-lat.ok{color:var(--ok)}
+.active-node-row .group-node-lat.warn{color:var(--warn)}
+.active-node-row .group-node-lat.bad{color:var(--danger)}
+.active-node-row .group-node-lat.mut,.active-node-row .group-node-lat.line{color:var(--text-3)}
+.active-node-row .group-node-select{flex:1 1 100%;min-width:0;width:100%;font-size:11.5px}
+.node-picker{position:relative;flex:1 1 100%;min-width:0}
+.node-picker-trigger{width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;height:42px;padding:0 13px;border:1px solid rgba(100,108,145,.15);border-radius:11px;background:rgba(255,255,255,.78);color:var(--text-2);font-size:12.5px;text-align:left;cursor:pointer}
+.node-picker-trigger:hover{border-color:rgba(0,122,255,.3);background:rgba(255,255,255,.94)}
+.node-picker-menu{display:none;position:absolute;z-index:100;left:0;right:0;top:calc(100% + 6px);max-height:260px;overflow:auto;padding:5px;border:1px solid rgba(100,108,145,.18);border-radius:13px;background:rgba(255,255,255,.98);box-shadow:0 14px 34px rgba(32,42,70,.22);backdrop-filter:blur(20px)}
+.node-picker.open .node-picker-menu{display:block}
+.node-picker-option{display:flex;align-items:center;justify-content:space-between;gap:14px;width:100%;padding:9px 10px;border:0;border-radius:9px;background:transparent;color:var(--text);font-size:12px;text-align:left;cursor:pointer}
+.node-picker-option:hover,.node-picker-option.selected{background:rgba(0,122,255,.1)}
+.node-picker-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.node-picker-lat{flex:0 0 auto;font-variant-numeric:tabular-nums;font-weight:650}
 
 code.chip{background:rgba(60,60,67,.08);border:1px solid var(--hair);border-radius:6px;
   padding:2px 7px;font-size:11px;font-family:ui-monospace,Menlo,monospace;color:var(--text-2)}
@@ -860,6 +879,20 @@ textarea{padding:13px 14px;border-radius:11px}
 .prow-url{min-height:40px;padding:8px 12px;border-radius:11px}
 .side-foot .btn{height:38px}
 @media(max-width:760px){.btn{height:42px;padding:0 16px}.btn.sm{height:38px}.btn.icon{width:38px;height:38px}input[type=text],input[type=password],input[type=number],select{height:44px}.search input{height:46px}.card-head{padding:16px}.card-body{padding:16px}.card-foot{padding:13px 16px}.prow{padding:15px 16px}.prow-ops{width:100%}.prow-ops .btn{flex:1}.nfbar .chip,.filter-chip{min-height:36px}}
+/* 分组页最终规格：以信息阅读为优先，避免五列窄卡造成断行和拥挤。 */
+.ggrid{grid-template-columns:repeat(3,minmax(280px,1fr));gap:16px}
+.gcard{padding:18px 20px;border-radius:18px;min-height:206px;display:flex;flex-direction:column;gap:8px;position:relative;z-index:1}
+.gcard:has(.node-picker.open){z-index:80}
+.gcard .ncard-t .nname{font-size:15px;font-weight:650}
+.gcard .ncard-t .lat{font-size:13px;font-weight:650}
+.gcard .ncard-s{font-size:12px;margin-top:0;min-height:22px}
+.gcard .ncard-s[style]{margin-top:2px!important;padding-top:10px;border-top:1px solid rgba(88,96,130,.1)}
+.gcard .active-node-row{margin-top:auto;padding-top:12px;border-top:1px solid rgba(88,96,130,.1)}
+.active-node-row .active-node-current{font-size:13px;color:var(--text);font-weight:600}
+.active-node-row .group-node-lat{font-size:12px}
+.active-node-row .group-node-select{margin-top:2px;background:rgba(255,255,255,.78);height:42px;font-size:12.5px}
+@media(max-width:1120px){.ggrid{grid-template-columns:repeat(2,minmax(280px,1fr))}}
+@media(max-width:760px){.ggrid{grid-template-columns:1fr;gap:12px}.gcard{min-height:190px;padding:16px}}
 </style>
 </head>
 <body>
@@ -2281,6 +2314,39 @@ function groupNodes(g) {
   return state.nodes.filter(n => ids.has(n.id))
     .sort((a, b) => (order[a.id] ?? 1e6) - (order[b.id] ?? 1e6));
 }
+function nodeLatencyLabel(n) {
+  const p = probeInfo(n);
+  return p.text === '—' ? '未测速' : p.text;
+}
+function nodeLatencyClass(n) { return probeInfo(n).cls; }
+function nodeLatencyColor(n) {
+  const cls = nodeLatencyClass(n);
+  return cls === 'ok' ? '#26966a' : cls === 'warn' ? '#b7791f' : cls === 'bad' ? '#d14343' : '#8b8d98';
+}
+function toggleNodePicker(gid) {
+  document.querySelectorAll('.node-picker.open').forEach(el => { if (el.dataset.gid !== gid) el.classList.remove('open'); });
+  const picker = document.querySelector(`.node-picker[data-gid="${CSS.escape(gid)}"]`);
+  if (picker) picker.classList.toggle('open');
+}
+function chooseNode(gid, nodeId) {
+  const picker = document.querySelector(`.node-picker[data-gid="${CSS.escape(gid)}"]`);
+  if (picker) picker.classList.remove('open');
+  setActiveNode(gid, nodeId);
+}
+document.addEventListener('click', e => {
+  if (!e.target.closest('.node-picker')) document.querySelectorAll('.node-picker.open').forEach(el => el.classList.remove('open'));
+});
+function effectiveGroupNode(g, nodes) {
+  if (!nodes.length) return null;
+  const selected = nodes.find(n => n.id === g.active_node);
+  if (selected) return selected;
+  // 自动策略没有持久化的 active_node；用最近一次真实测速结果展示当前候选。
+  return [...nodes].sort((a, b) => {
+    if (a.alive === true && b.alive !== true) return -1;
+    if (a.alive !== true && b.alive === true) return 1;
+    return (a.latency_ms ?? 999999) - (b.latency_ms ?? 999999);
+  })[0];
+}
 const CHEV = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>';
 const TICK = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>';
 function renderGroups() {
@@ -2306,11 +2372,15 @@ function renderGroups() {
     const sumCls = !tested ? 'dim' : (alive ? 'ok' : 'bad');
     const sumTxt = tested ? `${alive} 可用` : '未测速';
     const socksAddress = g.socks5_address || ('127.0.0.1:' + (18080 + state.groups.indexOf(g)));
-    const socksLive = g.socks5_enabled !== false && g.socks5_active !== false;
+    const socksLive = g.socks5_active === true;
+    const currentNode = effectiveGroupNode(g, nodes);
+    const currentLabel = currentNode
+      ? `${currentNode.name} · ${nodeLatencyLabel(currentNode)}`
+      : '暂无可用节点';
     const socksHint = g.socks5_enabled === false ? 'SOCKS5 未启用'
       : (!nodes.length
         ? `SOCKS5 未生成 · 分组没有节点${g.member_dangling ? `（${g.member_dangling} 个成员已失效，订阅刷新后节点 ID 变了）` : ''}`
-        : 'SOCKS5 · ' + esc(socksAddress));
+        : (socksLive ? 'SOCKS5 · ' + esc(socksAddress) : 'SOCKS5 · mihomo 未启动'));
     return `<div class="gcard" onclick="openGroupView('${g.id}')"
         title="查看分组 · ${esc(g.name)}">
       <div class="ncard-t"><span class="nname">${esc(g.name)}</span>
@@ -2325,12 +2395,19 @@ function renderGroups() {
         <span class="dim${socksLive ? '' : ' bad'}">${socksHint}</span>
         ${socksLive ? `<button class="btn ghost sm" data-addr="socks5://${esc(socksAddress)}" onclick="event.stopPropagation();copyGroupSocks(this)">复制</button>` : ''}
       </div>
-      ${g.strategy === 'manual' && nodes.length ? `<div class="ncard-s active-node-row" onclick="event.stopPropagation()">
-        <span class="dim">当前节点</span>
-        <select class="group-node-select" onchange="setActiveNode('${g.id}', this.value)" aria-label="选择当前工作节点">
-          <option value="">自动使用首个节点</option>
-          ${nodes.map(n => `<option value="${esc(n.id)}" ${g.active_node === n.id ? 'selected' : ''}>${esc(n.name)}</option>`).join('')}
-        </select>
+      ${nodes.length ? `<div class="ncard-s active-node-row" onclick="event.stopPropagation()">
+        <span class="dim">当前使用${g.strategy === 'manual' ? '' : ' · 自动策略'}</span>
+        <span class="active-node-current" title="最近一次测速结果">${esc(currentNode ? currentNode.name : '暂无可用节点')}</span>
+        <span class="group-node-lat ${nodeLatencyClass(currentNode || {})}">${esc(currentNode ? nodeLatencyLabel(currentNode) : '—')}</span>
+        <div class="node-picker" data-gid="${esc(g.id)}" onclick="event.stopPropagation()">
+          <button class="node-picker-trigger" type="button" onclick="event.preventDefault(); event.stopPropagation(); toggleNodePicker('${g.id}')">
+            <span>${g.strategy === 'manual' ? '自动使用首个节点' : '由策略自动选择'}</span><span>⌄</span>
+          </button>
+          <div class="node-picker-menu">
+            <button class="node-picker-option${!g.active_node ? ' selected' : ''}" type="button" onclick="event.preventDefault(); event.stopPropagation(); chooseNode('${g.id}', '')"><span class="node-picker-name">${g.strategy === 'manual' ? '自动使用首个节点' : '由策略自动选择'}</span><span class="node-picker-lat" style="color:#8b8d98">—</span></button>
+            ${nodes.map(n => `<button class="node-picker-option${g.active_node === n.id ? ' selected' : ''}" type="button" onclick="event.preventDefault(); event.stopPropagation(); chooseNode('${g.id}', '${esc(n.id)}')"><span class="node-picker-name">${esc(n.name)}</span><span class="node-picker-lat" style="color:${nodeLatencyColor(n)}">${esc(nodeLatencyLabel(n))}</span></button>`).join('')}
+          </div>
+        </div>
       </div>` : ''}
     </div>`;
   }).join('');
@@ -2338,10 +2415,13 @@ function renderGroups() {
 function copyGroupSocks(btn) { copyText(btn.dataset.addr); }
 async function setActiveNode(gid, nodeId) {
   try {
-    await api('/api/groups/' + gid, {method: 'PUT', body: {active_node: nodeId}});
     const g = state.groups.find(x => x.id === gid);
+    const body = {active_node: nodeId};
+    if (g && g.strategy !== 'manual' && nodeId) body.strategy = 'manual';
+    await api('/api/groups/' + gid, {method: 'PUT', body});
     if (g) g.active_node = nodeId;
-    toast(nodeId ? '当前工作节点已切换' : '已恢复自动使用首个节点');
+    if (g && body.strategy) g.strategy = body.strategy;
+    toast(nodeId ? (body.strategy ? '已切换为手动策略并设置当前节点' : '当前工作节点已切换') : '已恢复自动策略');
     await Promise.all([loadGroups(), loadPublish()]);
   } catch (e) { toast(e.error || '切换工作节点失败', false); }
 }
