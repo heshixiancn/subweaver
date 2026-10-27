@@ -1,12 +1,12 @@
 services:
   subweaver:
-    build:
-      context: .
+    #build:
+    #  context: .
       # 内嵌 mihomo 内核的版本（构建期从 GitHub Releases 下载，改这里可升级内核）
-      args:
-        MIHOMO_VERSION: 1.19.32
+    #  args:
+    #    MIHOMO_VERSION: 1.19.32
     # 或者直接用 GitHub Actions 构建好的镜像：
-    # image: ghcr.io/heshixiancn/subweaver:latest
+    image: ghcr.io/heshixiancn/subweaver:latest
     container_name: subweaver
     ports:
       # Web 配置界面
