@@ -511,6 +511,8 @@ details.card[open]>summary{border-bottom:1px solid var(--hair)}
   color:var(--text-3);font-size:11.5px;cursor:pointer;border-bottom:1px dashed transparent}
 .nsec .nsurl:hover{color:var(--accent-2);border-bottom-color:currentColor}
 .nsec .nserr{font-size:11.5px;color:var(--danger);white-space:nowrap}
+.nsec-empty{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 20px;color:var(--text-3);font-size:12px;border-top:1px solid var(--hair);background:rgba(255,255,255,.24)}
+.nsec-empty .empty-status{color:var(--danger);font-weight:560}
 /* 刷新中的旋转动画 */
 @keyframes ssrot{to{transform:rotate(360deg)}}
 .btn.spinning svg{animation:ssrot .9s linear infinite}
@@ -1927,15 +1929,24 @@ function renderNodeTable() {
     : `共 ${state.nodes.length} 个节点`;
   /* 按订阅来源分节，保持节点池原有出现顺序（自定义节点在最后） */
   const bySrc = new Map();
+  // 默认视图列出所有已配置订阅，包括抓取失败或暂时没有节点的来源。
+  if (!kw && !state.nodeFilter) state.subs.forEach(s => bySrc.set(s.id, []));
   list.forEach(n => {
     const k = n.source || 'custom';
     if (!bySrc.has(k)) bySrc.set(k, []);
     bySrc.get(k).push(n);
   });
   const collapsed = collapsedSet('sources');
-  $('nodeGrid').innerHTML = [...bySrc.entries()].map(([src, nodes]) => {
+  const sourceOrder = new Map(state.subs.map((s, i) => [s.id, i]));
+  const entries = [...bySrc.entries()].sort(([a], [b]) => {
+    if (a === 'custom') return 1;
+    if (b === 'custom') return -1;
+    return (sourceOrder.get(a) ?? 1e6) - (sourceOrder.get(b) ?? 1e6);
+  });
+  $('nodeGrid').innerHTML = entries.map(([src, nodes]) => {
     const isCol = collapsed.has(src);
-    const label = srcName({source: src, source_name: nodes[0].source_name});
+    const sub = state.subs.find(s => s.id === src);
+    const label = srcName({source: src, source_name: nodes[0]?.source_name || sub?.name});
     const alive = nodes.filter(n => n.alive === true).length;
     const dead = nodes.filter(n => n.alive === false).length;
     const unknown = nodes.length - alive - dead;
@@ -1943,7 +1954,7 @@ function renderNodeTable() {
       ? [`<span class="ht-ok">${alive} 可用</span>`,
          dead ? `<span class="ht-bad">${dead} 失败</span>` : '',
          unknown ? `${unknown} 超时` : ''].filter(Boolean).join('<i>·</i>')
-      : '未测速';
+      : (nodes.length ? '未测速' : (sub?.error ? '抓取失败' : '暂无节点'));
     const cards = nodes.map(n => {
       const p = probeInfo(n);
       const tip = (n.probe === 'deep' || n.probe === 'ok') ? PROBE_TIP[n.probe === 'ok' ? 'portOnly' : 'deep']
@@ -1965,8 +1976,7 @@ function renderNodeTable() {
         <span class="nsname">${esc(label)}</span>
         <span class="nscnt"><span class="ghealth">${nodes.length} 节点 · ${health}</span></span>
         ${src === 'custom' ? '' : (() => {
-          const sub = state.subs.find(s => s.id === src);
-          return `${sub && sub.error ? '<span class="nserr" title="' + esc(sub.error) + '">抓取失败</span>' : ''}
+          return `${sub && sub.error ? '<span class="nserr" title="最近一次抓取失败">抓取失败</span>' : ''}
         ${sub ? `<span class="nsurl" data-url="${esc(sub.url)}" title="${esc(sub.url)} — 点击复制完整地址"
           onclick="event.stopPropagation(); copyText(this.dataset.url)">${esc(sub.url)}</span>` : ''}
         <span class="nsops" onclick="event.stopPropagation()">
@@ -1976,11 +1986,11 @@ function renderNodeTable() {
           ${iconBtn('trash', `delSub('${src}')`, '删除该订阅（连同其节点）')}
         </span>`; })()}
       </div>
-      ${isCol ? '' : `<div class="ngrid">${cards}</div>`}
+      ${isCol ? '' : (nodes.length ? `<div class="ngrid">${cards}</div>` : `<div class="nsec-empty"><span>${sub?.error ? '当前没有已保存节点' : '该订阅尚未获取节点'}</span><span class="empty-status">${sub?.error ? '最近一次抓取失败' : '可刷新订阅获取节点'}</span></div>`)}
     </div>`;
   }).join('');
   renderNodeFilters();
-  $('nodeEmpty').style.display = list.length ? 'none' : 'block';
+  $('nodeEmpty').style.display = (list.length || (!kw && !state.nodeFilter && state.subs.length)) ? 'none' : 'block';
 }
 /* 折叠 / 展开某个订阅来源的节点分节 */
 function toggleSourceSec(src) {
@@ -2202,34 +2212,39 @@ async function loadSubs() {
   state.subNames = {};
   d.subscriptions.forEach(s => state.subNames[s.id] = s.name);
   if (!state.groups.length) state.groups = d.groups;
+  renderNodeTable();
   updateKpis();
 }
 async function saveSub() {
   const body = {name: $('s_name').value, url: $('s_url').value.trim(), auto_group: $('s_group').value};
   if (state.editingSub) {
-    /* 编辑模式：PUT 保存；订阅地址变了则自动重新抓取 */
+    /* 服务端原子更新 URL 与节点，避免新链接配上旧内容。 */
     try {
       const r = await api(`/api/subs/${state.editingSub}`, {method: 'PUT', body});
       closeDlg('subDlg');
       state.editingSub = null;
-      toast(r.url_changed ? '已保存，正在重新抓取…' : '订阅已保存');
-      if (r.url_changed) await api(`/api/subs/${r.subscription.id}/refresh`, {method: 'POST'});
+      toast(r.url_changed ? `订阅已更新 · ${r.node_count} 个节点` : '订阅已保存');
       await loadSubs(); await loadGroups(); await loadNodes(); await loadPublish();
       renderGroupSelectors();
     } catch (e) { toast(e.error || '保存失败', false); }
     return;
   }
   if (!body.url) return toast('请填写订阅地址', false);
+  let created;
   try {
-    const r = await api('/api/subs', {method: 'POST', body});
+    created = await api('/api/subs', {method: 'POST', body});
     $('s_name').value = ''; $('s_url').value = '';
     closeDlg('subDlg');
-    toast('订阅已添加，正在抓取…');
-    const rr = await api(`/api/subs/${r.subscription.id}/refresh`, {method: 'POST'});
-    toast(`抓取成功：${rr.node_count} 个节点`);
-    await loadSubs(); await loadGroups(); await loadNodes(); await loadPublish();
+  } catch (e) { return toast(e.error || '添加失败', false); }
+  try {
+    const rr = await api(`/api/subs/${created.subscription.id}/refresh`, {method: 'POST'});
+    toast(`订阅已添加 · ${rr.node_count} 个节点`);
+  } catch (e) {
+    toast(e.error || '订阅已保存，但抓取失败；可在节点列表重试', false);
+  } finally {
+    await Promise.all([loadSubs(), loadGroups(), loadNodes(), loadPublish()]);
     renderGroupSelectors();
-  } catch (e) { toast(e.error || '添加失败', false); }
+  }
 }
 /* 按钮触发弹框：添加订阅源（传 subId 即编辑该订阅） */
 function openSubDlg(subId) {

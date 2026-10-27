@@ -11,7 +11,9 @@ Shadowsocks Web 配置管理器
 """
 import base64
 import concurrent.futures
+from collections import Counter
 import datetime
+from functools import wraps
 import getpass
 import hashlib
 import io
@@ -58,6 +60,7 @@ DEFAULT_SOCKS_LISTEN = os.environ.get("SS_SOCKS_LISTEN") or "127.0.0.1"
 SOCKS_ADVERTISE = (os.environ.get("SS_SOCKS_ADVERTISE") or "").strip()
 
 _lock = threading.RLock()
+_subscription_write_lock = threading.RLock()
 _rr_counters = {}          # 轮询策略内存计数器 {group_id: n}
 app = Flask(__name__, static_folder="static")
 app.config["MAX_CONTENT_LENGTH"] = 8 * 1024 * 1024
@@ -235,6 +238,13 @@ def load_data():
                 if fixed and fixed.get("sni"):
                     n["sni"] = fixed["sni"]
                     changed = True
+        # 订阅节点数以节点表的来源关系为准，修复历史刷新/编辑导致的计数漂移。
+        actual_counts = Counter(n.get("source") for n in data["nodes"] if n.get("source"))
+        for sub in data["subscriptions"]:
+            actual = actual_counts.get(sub.get("id"), 0)
+            if sub.get("node_count") != actual:
+                sub["node_count"] = actual
+                changed = True
         # 当前节点不能只依赖易变的节点 ID：订阅刷新后若机场重排或重建记录，
         # 仍按稳定指纹恢复用户选择，避免刷新页面/订阅后静默丢失。
         node_by_id = {n.get("id"): n for n in data["nodes"]}
@@ -267,6 +277,15 @@ def save_data_obj(data):
 def save_data(data):
     with _lock:
         save_data_obj(data)
+
+
+def serialize_subscription_write(fn):
+    """Serialize subscription read/modify/write workflows, including network fetches."""
+    @wraps(fn)
+    def wrapped(*args, **kwargs):
+        with _subscription_write_lock:
+            return fn(*args, **kwargs)
+    return wrapped
 
 
 def hash_password(password, salt=None):
@@ -1890,12 +1909,16 @@ def api_methods():
 @auth_required
 def api_subs():
     data = load_data()
-    return jsonify({"subscriptions": data["subscriptions"],
+    counts = Counter(n.get("source") for n in data["nodes"] if n.get("source"))
+    subscriptions = [{**sub, "node_count": counts.get(sub.get("id"), 0)}
+                     for sub in data["subscriptions"]]
+    return jsonify({"subscriptions": subscriptions,
                     "nodes": data["nodes"], "groups": data["groups"]})
 
 
 @app.route("/api/subs", methods=["POST"])
 @auth_required
+@serialize_subscription_write
 def api_add_sub():
     data = load_data()
     s = request.json or {}
@@ -1922,6 +1945,7 @@ def api_add_sub():
 
 @app.route("/api/subs/<sub_id>/refresh", methods=["POST"])
 @auth_required
+@serialize_subscription_write
 def api_refresh_sub(sub_id):
     data = load_data()
     sub = next((s for s in data["subscriptions"] if s["id"] == sub_id), None)
@@ -1952,6 +1976,7 @@ def api_refresh_sub(sub_id):
 
 @app.route("/api/subs/refresh_all", methods=["POST"])
 @auth_required
+@serialize_subscription_write
 def api_refresh_all_subs():
     data = load_data()
     summary = []
@@ -1980,6 +2005,7 @@ def api_refresh_all_subs():
 
 @app.route("/api/subs/<sub_id>", methods=["PUT"])
 @auth_required
+@serialize_subscription_write
 def api_edit_sub(sub_id):
     """编辑订阅源：名称 / 订阅地址 / 自动归组"""
     data = load_data()
@@ -1991,6 +2017,16 @@ def api_edit_sub(sub_id):
     if url and not url.startswith(("http://", "https://")):
         return jsonify({"error": "请填写有效的订阅 URL"}), 400
     url_changed = bool(url) and url != sub["url"]
+    refreshed_nodes = None
+    if url_changed:
+        # URL 与其节点必须同一事务提交。先验证新地址，失败时完全保留旧 URL/节点。
+        try:
+            refreshed_nodes = fetch_subscription(url)
+        except Exception as exc:
+            return jsonify({"error": f"新订阅地址抓取失败，未更改原配置：{exc}"}), 502
+        if not refreshed_nodes:
+            return jsonify({"error": "新订阅地址没有解析出节点，未更改原配置"}), 502
+        refreshed_nodes = _prepare_refreshed_nodes(data, sub_id, refreshed_nodes)
     if url:
         sub["url"] = url
     name_changed = False
@@ -2002,6 +2038,13 @@ def api_edit_sub(sub_id):
         for n in data["nodes"]:
             if n.get("source") == sub_id:
                 n["source_name"] = sub["name"]
+    if refreshed_nodes is not None:
+        for node in refreshed_nodes:
+            node["source_name"] = sub["name"]
+        data["nodes"] = [n for n in data["nodes"] if n.get("source") != sub_id]
+        data["nodes"].extend(refreshed_nodes)
+        sub.update({"node_count": len(refreshed_nodes),
+                    "last_update": time.strftime("%Y-%m-%d %H:%M"), "error": None})
     if "auto_group" in s:       # 自动归组：先全摘再挂新组
         for g in data["groups"]:
             g["auto_sources"] = [x for x in g.get("auto_sources", []) if x != sub_id]
@@ -2014,11 +2057,15 @@ def api_edit_sub(sub_id):
                     g["auto_sources"].append(sub_id)
     save_data(data)
     regen_outputs(data)
-    return jsonify({"ok": True, "subscription": sub, "url_changed": url_changed})
+    if url_changed:
+        refresh_mihomo_if_running(data)
+    return jsonify({"ok": True, "subscription": sub, "url_changed": url_changed,
+                    "node_count": sub.get("node_count", 0)})
 
 
 @app.route("/api/subs/<sub_id>", methods=["DELETE"])
 @auth_required
+@serialize_subscription_write
 def api_del_sub(sub_id):
     data = load_data()
     data["subscriptions"] = [s for s in data["subscriptions"] if s["id"] != sub_id]
