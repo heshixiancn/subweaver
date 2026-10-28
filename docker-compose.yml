@@ -22,4 +22,7 @@ services:
       TZ: Asia/Shanghai
       # 分组监听地址：容器内必须是 0.0.0.0，否则端口映射转发不进来
       SS_SOCKS_LISTEN: 0.0.0.0
+      # 可选：订阅抓取专用出站代理。Mac Docker 可在 .env 中设为
+      # SUBWEAVER_HTTP_PROXY=http://host.docker.internal:6152
+      SUBWEAVER_HTTP_PROXY: ${SUBWEAVER_HTTP_PROXY:-}
     restart: unless-stopped

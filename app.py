@@ -323,7 +323,16 @@ SUB_UA = "Shadowrocket/2.2.35 (iPhone; iOS 17.5)"
 def fetch_subscription(url):
     """抓取订阅并解析全部协议节点。
     兼容三种下发形态：明文 URI 列表 / base64 包裹 / Clash 风格 YAML。"""
-    resp = requests.get(url, timeout=20, headers={"User-Agent": SUB_UA})
+    request_options = {"timeout": 20, "headers": {"User-Agent": SUB_UA}}
+    # 容器不会继承 Docker 守护进程的代理配置。部署在需要代理出站的环境时，
+    # 通过 SUBWEAVER_HTTP_PROXY 显式传入容器可访问的代理地址。
+    subscription_proxy = os.environ.get("SUBWEAVER_HTTP_PROXY", "").strip()
+    if subscription_proxy:
+        request_options["proxies"] = {
+            "http": subscription_proxy,
+            "https": subscription_proxy,
+        }
+    resp = requests.get(url, **request_options)
     resp.raise_for_status()
     text = resp.text or ""
     nodes = protocols.parse_lines(text, allow_http=False)
